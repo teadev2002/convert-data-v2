@@ -15,6 +15,32 @@ function slugify(text) {
     .replace(/-+/g, '-'); // Thu gọn nhiều dấu -
 }
 
+// Hàm đối chiếu xem hai bản ghi có trùng khớp ít nhất 2 trong 4 trường (url, address, phone, title)
+function isMatch2of4(r1, r2) {
+  let matchCount = 0;
+  
+  const clean = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
+  const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
+
+  const u1 = clean(r1.url);
+  const u2 = clean(r2.url);
+  if (u1 && u2 && u1 === u2) matchCount++;
+
+  const a1 = clean(r1.address);
+  const a2 = clean(r2.address);
+  if (a1 && a2 && a1 === a2) matchCount++;
+
+  const p1 = cleanPhone(r1.phone);
+  const p2 = cleanPhone(r2.phone);
+  if (p1 && p2 && p1 === p2) matchCount++;
+
+  const t1 = clean(r1.title);
+  const t2 = clean(r2.title);
+  if (t1 && t2 && t1 === t2) matchCount++;
+
+  return matchCount >= 2;
+}
+
 export const listService = {
   /**
    * 1. Lấy danh mục các tỉnh thành từ bảng provinces và tính số lượng bản ghi tương ứng
@@ -127,7 +153,7 @@ export const listService = {
    * @param {string} dataType - Loại dữ liệu ('hotels' hoặc 'restaurants')
    * @returns {Promise<Object>} - Trả về tóm tắt tỉnh thành sau khi lưu { id, name, count }
    */
-  async save(provinceName, newData, provinceId = null, dataType = 'hotels') {
+  async save(provinceName, newData, provinceId = null, dataType = 'hotels', activeListId = '') {
     const cleanProvinceName = String(provinceName || '').trim();
     if (!cleanProvinceName) {
       throw new Error('Tên tỉnh thành không được để trống.');
@@ -177,7 +203,47 @@ export const listService = {
       }
     }
 
-    // 2. Tải toàn bộ dữ liệu hiện tại của tỉnh này để so khớp trùng lặp URL
+    // 2. Kiểm tra chế độ lưu:
+    // Nếu activeListId trùng khớp với targetProvinceId (người dùng đang sửa và lưu đè lên chính tỉnh này)
+    const isOverwriteMode = activeListId && String(activeListId) === String(targetProvinceId);
+
+    if (isOverwriteMode) {
+      // Chế độ ghi đè: Xoá sạch bản ghi cũ của tỉnh trong bảng tương ứng trước, sau đó chèn toàn bộ
+      const { error: deleteErr } = await supabase
+        .from(dataType)
+        .delete()
+        .eq('province_id', targetProvinceId);
+
+      if (deleteErr) {
+        console.error(`Lỗi khi xóa ghi đè dữ liệu ${dataType}:`, deleteErr);
+        throw new Error(`Lỗi ghi đè dữ liệu cũ: ${deleteErr.message}`);
+      }
+
+      // Toàn bộ dữ liệu sạch từ Frontend sẽ được chèn mới
+      const toInsert = cleanNewData.map(item => ({
+        ...item,
+        province_id: targetProvinceId
+      }));
+
+      if (toInsert.length > 0) {
+        const { error: insertErr } = await supabase
+          .from(dataType)
+          .insert(toInsert);
+
+        if (insertErr) {
+          console.error(`Lỗi chèn mới ghi đè dữ liệu ${dataType}:`, insertErr);
+          throw new Error(`Lỗi lưu ghi đè dữ liệu mới: ${insertErr.message}`);
+        }
+      }
+
+      return {
+        id: String(targetProvinceId),
+        name: cleanProvinceName,
+        count: toInsert.length
+      };
+    }
+
+    // Chế độ gộp cộng thêm (Append): Tải dữ liệu cũ và đối khớp loại trùng
     const { data: oldRecords, error: fetchErr } = await supabase
       .from(dataType)
       .select('*')
@@ -185,21 +251,31 @@ export const listService = {
 
     if (fetchErr) throw new Error(`Lỗi tải dữ liệu cũ: ${fetchErr.message}`);
 
-    const oldUrlsSet = new Set((oldRecords || []).map(r => (r.url || '').trim().toLowerCase()));
     const toInsert = [];
 
-    // Lọc trùng bằng URL và chuẩn bị dữ liệu chèn mới (cộng thêm)
+    // Lọc trùng bằng cách kiểm tra khớp 2 trong 4 điều kiện
     for (const newItem of cleanNewData) {
-      const cleanUrl = (newItem.url || '').trim();
-      if (cleanUrl) {
-        if (!oldUrlsSet.has(cleanUrl.toLowerCase())) {
-          toInsert.push({
-            ...newItem,
-            province_id: targetProvinceId
-          });
-          oldUrlsSet.add(cleanUrl.toLowerCase());
+      let isDup = false;
+      
+      // 1. Đối chiếu với dữ liệu cũ trong database của tỉnh thành này
+      for (const oldRec of oldRecords || []) {
+        if (isMatch2of4(newItem, oldRec)) {
+          isDup = true;
+          break;
         }
-      } else {
+      }
+      
+      // 2. Đối chiếu với các bản ghi mới chuẩn bị chèn (tránh trùng nội bộ tệp chèn)
+      if (!isDup) {
+        for (const addedRec of toInsert) {
+          if (isMatch2of4(newItem, addedRec)) {
+            isDup = true;
+            break;
+          }
+        }
+      }
+
+      if (!isDup) {
         toInsert.push({
           ...newItem,
           province_id: targetProvinceId

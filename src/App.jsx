@@ -139,40 +139,53 @@ function App() {
     
     setIsChecking(true);
     try {
-      // Thu thập tất cả các URL có trong bảng hiển thị hiện tại
-      const urlsToCheck = currentData
-        .map(item => item.url)
-        .filter(url => url && url.trim() !== '');
-
-      if (urlsToCheck.length === 0) {
-        toast.info('Không tìm thấy đường dẫn Google Maps (URL) nào để đối chiếu trùng lặp.');
-        setIsChecking(false);
-        return;
-      }
-
       // Gọi đối chiếu với dữ liệu Supabase, truyền dataType và activeListId để làm exclude (loại trừ tỉnh đang xem)
-      const { duplicateUrls } = await dedupService.checkDuplicates(urlsToCheck, activeListId || null, dataType);
+      const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType);
       
-      const apiDupSet = new Set(duplicateUrls.map(u => u.trim()));
-      const localSeenUrls = new Set(); // Dùng Set kiểm tra trùng chéo nội bộ (Internal Duplicates)
+      const apiDupSet = new Set(duplicateStts);
+      const localSeen = []; // Lưu các bản ghi đã duyệt qua để kiểm tra trùng chéo nội bộ
+
+      const cleanString = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
+      const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
+
+      // Hàm đối chiếu khớp 2 trong 4 điều kiện
+      const isMatch2of4 = (r1, r2) => {
+        let matchCount = 0;
+        
+        const u1 = cleanString(r1.url);
+        const u2 = cleanString(r2.url);
+        if (u1 && u2 && u1 === u2) matchCount++;
+
+        const a1 = cleanString(r1.address);
+        const a2 = cleanString(r2.address);
+        if (a1 && a2 && a1 === a2) matchCount++;
+
+        const p1 = cleanPhone(r1.phone);
+        const p2 = cleanPhone(r2.phone);
+        if (p1 && p2 && p1 === p2) matchCount++;
+
+        const t1 = cleanString(r1.title);
+        const t2 = cleanString(r2.title);
+        if (t1 && t2 && t1 === t2) matchCount++;
+
+        return matchCount >= 2;
+      };
 
       // Cập nhật thuộc tính isDuplicate
       const updatedData = currentData.map(item => {
-        const cleanUrl = item.url ? item.url.trim() : '';
-        let isDup = false;
+        let isDup = apiDupSet.has(item.stt);
 
-        if (cleanUrl) {
-          // 1. Kiểm tra xem có trùng với database diện rộng (các tỉnh thành khác trên Supabase)
-          if (apiDupSet.has(cleanUrl)) {
-            isDup = true;
+        // Kiểm tra trùng chéo nội bộ (Internal Duplicates)
+        if (!isDup) {
+          for (const seenItem of localSeen) {
+            if (isMatch2of4(item, seenItem)) {
+              isDup = true;
+              break;
+            }
           }
-          // 2. Kiểm tra trùng chéo nội bộ trong chính tệp hiển thị
-          if (localSeenUrls.has(cleanUrl)) {
-            isDup = true;
-          }
-          localSeenUrls.add(cleanUrl);
         }
 
+        localSeen.push(item);
         return {
           ...item,
           isDuplicate: isDup
@@ -288,7 +301,7 @@ function App() {
 
     setIsLoading(true);
     try {
-      const savedList = await listService.save(provinceName, currentData, selectedId, dataType);
+      const savedList = await listService.save(provinceName, currentData, selectedId, dataType, activeListId);
       const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
       toast.success(`Đã lưu trữ thành công dữ liệu ${displayType} vào tỉnh "${provinceName}" trên Supabase.`);
       setIsSaveModalOpen(false);
