@@ -1,13 +1,15 @@
 import React from 'react';
 
-export default function TableView({ data, onDeleteRow }) {
+export default function TableView({ data, dataType, onDeleteRow }) {
   if (!data || data.length === 0) {
     return (
       <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-        Không có dữ liệu hiển thị. Vui lòng dán JSON/CSV hoặc nạp từ API bên ngoài, sau đó bấm nút "Xử lý dữ liệu".
+        Không có dữ liệu hiển thị. Vui lòng dán JSON/CSV hoặc kéo thả tệp tin vào đây, sau đó bấm nút "Xử lý dữ liệu".
       </div>
     );
   }
+
+  const isRestaurant = dataType === 'restaurants';
 
   return (
     <div className="table-container">
@@ -16,6 +18,8 @@ export default function TableView({ data, onDeleteRow }) {
           <tr>
             <th className="col-stt">STT</th>
             <th className="col-title">Tên cơ sở</th>
+            {isRestaurant && <th className="col-cuisine">Loại ẩm thực</th>}
+            <th className="col-email">Email</th>
             <th className="col-phone">Số điện thoại</th>
             <th className="col-address">Địa chỉ</th>
             <th className="col-score">Điểm số</th>
@@ -39,8 +43,20 @@ export default function TableView({ data, onDeleteRow }) {
                   </span>
                 )}
               </td>
+
+              {/* Cột loại hình ẩm thực cho nhà hàng */}
+              {isRestaurant && (
+                <td className="col-cuisine" style={{ fontStyle: 'italic' }}>
+                  {row.cuisineType || <span className="empty-text">-</span>}
+                </td>
+              )}
               
-              {/* Cột số điện thoại hiển thị trước cột địa chỉ */}
+              {/* Cột email */}
+              <td className="col-email">
+                {row.email || <span className="empty-text">-</span>}
+              </td>
+
+              {/* Cột số điện thoại */}
               <td className="col-phone">
                 {row.phone || <span className="empty-text">-</span>}
               </td>

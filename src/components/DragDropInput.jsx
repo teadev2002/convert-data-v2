@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 
 export default function DragDropInput({ value, onChange, onRawInputLoad }) {
   const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -19,29 +21,77 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
     
     const file = e.dataTransfer.files[0];
     if (!file) return;
+    processFile(file);
+  };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    processFile(file);
+  };
+
+  const processFile = (file) => {
     const fileType = file.name.split('.').pop().toLowerCase();
-    if (fileType !== 'json' && fileType !== 'csv') {
-      toast.error('Chỉ hỗ trợ kéo thả tệp định dạng .json hoặc .csv');
+    if (fileType !== 'json' && fileType !== 'csv' && fileType !== 'xlsx' && fileType !== 'xls') {
+      toast.error('Chỉ hỗ trợ nạp tệp định dạng .json, .csv, .xlsx hoặc .xls');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target.result;
-      onRawInputLoad(text);
-      toast.success(`Đã tải tệp ${file.name} thành công!`);
+      try {
+        if (fileType === 'xlsx' || fileType === 'xls') {
+          // Xử lý tệp Excel bằng SheetJS
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rawJson = XLSX.utils.sheet_to_json(worksheet);
+          
+          // Chuyển đổi thành chuỗi JSON đẹp để nạp vào textarea
+          const jsonStr = JSON.stringify(rawJson, null, 2);
+          onRawInputLoad(jsonStr);
+          toast.success(`Đã nạp tệp Excel "${file.name}" thành công!`);
+        } else {
+          // Xử lý tệp JSON/CSV văn bản thường
+          const text = event.target.result;
+          onRawInputLoad(text);
+          toast.success(`Đã nạp tệp tin "${file.name}" thành công!`);
+        }
+      } catch (err) {
+        console.error('File parsing error:', err);
+        toast.error(`Lỗi phân tích tệp tin: ${err.message}`);
+      }
     };
-    reader.onerror = () => {
-      toast.error('Lỗi khi đọc tệp.');
-    };
-    reader.readAsText(file);
+
+    if (fileType === 'xlsx' || fileType === 'xls') {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   };
 
   return (
     <div className="drag-drop-input">
       <div className="input-labels">
-        <label style={{ color: 'var(--text-main)' }}>Dữ liệu khách sạn đầu vào (JSON hoặc CSV):</label>
+        <label style={{ color: 'var(--text-main)' }}>Dữ liệu đầu vào (Excel, JSON hoặc CSV):</label>
+        
+        {/* Nút bấm chọn tệp tin nâng cao */}
+        <button 
+          type="button" 
+          className="api-import-toggle"
+          onClick={() => fileInputRef.current.click()}
+          title="Chọn tệp Excel, JSON hoặc CSV từ thiết bị của bạn"
+        >
+          📂 Chọn tệp tin (.xlsx, .csv, .json)
+        </button>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          accept=".json,.csv,.xlsx,.xls" 
+          style={{ display: 'none' }}
+        />
       </div>
 
       <div 
@@ -53,7 +103,7 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Dán mã JSON hoặc nội dung CSV tại đây... Hoặc kéo thả tệp .json/.csv trực tiếp vào vùng này."
+          placeholder="Dán mã JSON, nội dung CSV tại đây... Hoặc kéo thả tệp .xlsx/.csv/.json trực tiếp vào vùng này."
         />
         {(!value && !isDragging) && (
           <div className="drag-placeholder">

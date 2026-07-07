@@ -1,42 +1,34 @@
-const INDEX_KEY = 'hotel_lists_index';
-const DATA_PREFIX = 'hotel_data_';
+import { supabase } from '../utils/supabase';
 
 export const dedupService = {
   /**
-   * 3. Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check)
+   * 3. Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check) diện rộng trên Supabase
    * @param {Array<string>} urls - Danh sách URL cần đối chiếu kiểm tra trùng lặp
-   * @param {string|null} excludeListId - ID của danh sách đang xem trên màn hình (activeListId) dùng để loại trừ
+   * @param {string|null} provinceId - ID của tỉnh thành đang xem (activeListId) dùng để loại trừ
+   * @param {string} dataType - Loại dữ liệu đang đối chiếu ('hotels' hoặc 'restaurants')
    * @returns {Promise<{duplicateUrls: Array<string>}>}
    */
-  async checkDuplicates(urls, excludeListId = null) {
-    // Giả lập thời gian trễ của mạng
-    await new Promise(resolve => setTimeout(resolve, 150));
-
+  async checkDuplicates(urls, provinceId = null, dataType = 'hotels') {
     try {
-      // Đọc chỉ mục danh sách hotel_lists_index
-      const indexContent = localStorage.getItem(INDEX_KEY);
-      const index = indexContent ? JSON.parse(indexContent) : [];
+      let query = supabase.from(dataType).select('url');
+
+      // Quy tắc loại trừ: Nếu đang xem tỉnh cũ, chỉ so khớp với các tỉnh thành khác
+      if (provinceId) {
+        query = query.neq('province_id', provinceId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error(`Lỗi khi lấy dữ liệu URL đối chiếu ${dataType} từ Supabase:`, error);
+        throw new Error(`Lỗi đối chiếu dữ liệu Supabase: ${error.message}`);
+      }
 
       const existingUrlsSet = new Set();
-
-      // Duyệt qua tất cả các danh sách đã lưu để gom toàn bộ URL hiện có
-      for (const list of index) {
-        // QUY TẮC SO KHỚP URL:
-        // - Nếu đang xem danh sách cũ (excludeListId có giá trị): loại trừ chính nó ra khỏi đối chiếu để tránh tự báo trùng
-        // - Nếu là file mới import (excludeListId rỗng): so sánh đối chiếu với toàn bộ dữ liệu của tất cả các danh sách
-        if (excludeListId && list.id === excludeListId) {
-          continue;
-        }
-
-        // Đọc dữ liệu chi tiết của danh sách từ key hotel_data_[listId]
-        const dataContent = localStorage.getItem(`${DATA_PREFIX}${list.id}`);
-        if (dataContent) {
-          const records = JSON.parse(dataContent);
-          for (const item of records) {
-            if (item.url && item.url.trim()) {
-              // Sử dụng chữ thường để đối chiếu không phân biệt hoa thường
-              existingUrlsSet.add(item.url.trim().toLowerCase());
-            }
+      if (data) {
+        for (const item of data) {
+          if (item.url && item.url.trim()) {
+            existingUrlsSet.add(item.url.trim().toLowerCase());
           }
         }
       }
@@ -53,7 +45,7 @@ export const dedupService = {
         duplicateUrls: uniqueDuplicateUrls
       };
     } catch (error) {
-      console.error('Lỗi khi đối chiếu trùng lặp LocalStorage:', error);
+      console.error('Lỗi khi đối chiếu trùng lặp Supabase:', error);
       return { duplicateUrls: [] };
     }
   }

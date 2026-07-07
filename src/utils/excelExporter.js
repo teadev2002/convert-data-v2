@@ -1,12 +1,15 @@
 import * as XLSX from 'xlsx';
 
 /**
- * Xuất mảng dữ liệu khách sạn hiện tại ra file Excel (.xlsx)
- * @param {Array} data - Dữ liệu khách sạn hiện tại (currentData)
+ * Xuất mảng dữ liệu khách sạn/nhà hàng hiện tại ra file Excel (.xlsx)
+ * @param {Array} data - Dữ liệu hiện tại (currentData)
  * @param {string} fileName - Tên tệp Excel xuất ra (mặc định: hotels_data.xlsx)
+ * @param {string} dataType - Loại dữ liệu đang xuất ('hotels' hoặc 'restaurants')
  */
-export function exportToExcel(data, fileName = 'hotels_data.xlsx') {
+export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'hotels') {
   if (!Array.isArray(data) || data.length === 0) return;
+
+  const isRestaurant = dataType === 'restaurants';
 
   // 1. Sao chép và định dạng lại cột số điện thoại cũng như đổi tên header theo thứ tự chuẩn
   const formattedData = data.map((item, index) => {
@@ -20,6 +23,8 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx') {
     return {
       'STT': index + 1,
       'Title': item.title || '',
+      ...(isRestaurant ? { 'Cuisine Type': item.cuisineType || '' } : {}),
+      'Email': item.email || '',
       'Phone': phoneStr,
       'Address': item.address || '',
       'URL': item.url || '',
@@ -35,6 +40,8 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx') {
   const columnWidths = [
     { wch: 6 },   // Cột STT
     { wch: 30 },  // Cột Title
+    ...(isRestaurant ? [{ wch: 20 }] : []), // Cột Cuisine Type
+    { wch: 25 },  // Cột Email
     { wch: 16 },  // Cột Phone
     { wch: 45 },  // Cột Address
     { wch: 40 },  // Cột URL
@@ -45,7 +52,11 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx') {
 
   // 4. Tạo Workbook mới và gắn Worksheet vào
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Hotels Data');
+  XLSX.utils.book_append_sheet(
+    workbook, 
+    worksheet, 
+    isRestaurant ? 'Restaurants Data' : 'Hotels Data'
+  );
 
   // 5. Tiến hành ghi và tải file xuống máy người dùng
   XLSX.writeFile(workbook, fileName);

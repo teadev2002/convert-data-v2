@@ -22,13 +22,14 @@ import './App.css';
 
 function App() {
   // --- States toàn cục quản lý luồng dữ liệu ---
+  const [dataType, setDataType] = useState('hotels'); // 'hotels' hoặc 'restaurants'
   const [rawInput, setRawInput] = useState(''); // Lưu nội dung nhập liệu hoặc kéo thả thô
   const [originalData, setOriginalData] = useState([]); // Lưu dữ liệu thô sau khi parse (chưa qua lọc)
   const [currentData, setCurrentData] = useState([]); // Dữ liệu đang trực quan hóa (sau khi sắp xếp, lọc...)
-  const [lists, setLists] = useState([]); // Danh mục danh sách đã lưu từ LocalStorage
+  const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Supabase (provinces)
   
-  const [selectedListId, setSelectedListId] = useState(''); // ID danh sách đang chọn ở dropdown
-  const [activeListId, setActiveListId] = useState(''); // ID danh sách cũ đang hiển thị trên bảng
+  const [selectedListId, setSelectedListId] = useState(''); // ID tỉnh thành đang chọn ở dropdown
+  const [activeListId, setActiveListId] = useState(''); // ID tỉnh thành cũ đang hiển thị trên bảng
   
   const [isLoading, setIsLoading] = useState(false); // Trạng thái tải dữ liệu chung
   const [isChecking, setIsChecking] = useState(false); // Trạng thái gọi API check trùng lặp
@@ -44,11 +45,8 @@ function App() {
     onCancel: () => {}
   });
 
-  // --- Khởi tạo dữ liệu khi mở trang ---
+  // --- Khởi tạo theme khi mở trang ---
   useEffect(() => {
-    // Tải danh mục các danh sách từ LocalStorage
-    loadSavedLists();
-    
     // Tự động kiểm tra cài đặt Dark Mode của hệ thống
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (systemPrefersDark) {
@@ -57,14 +55,26 @@ function App() {
     }
   }, []);
 
-  // --- Lấy danh mục các tệp đã lưu trong LocalStorage ---
+  // --- Tự động tải lại danh sách tỉnh thành mỗi khi đổi Tab Hotels / Restaurants ---
+  useEffect(() => {
+    loadSavedLists();
+    
+    // Reset toàn bộ trạng thái dữ liệu cũ
+    setSelectedListId('');
+    setActiveListId('');
+    setCurrentData([]);
+    setOriginalData([]);
+    setRawInput('');
+  }, [dataType]);
+
+  // --- Lấy danh mục các tỉnh thành từ Supabase ---
   const loadSavedLists = async () => {
     setIsLoading(true);
     try {
-      const data = await listService.getAll();
+      const data = await listService.getAll(dataType);
       setLists(data || []);
     } catch (err) {
-      toast.error(`Lỗi tải danh sách từ LocalStorage: ${err.message}`);
+      toast.error(`Lỗi tải danh sách từ Supabase: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -83,17 +93,17 @@ function App() {
     });
   };
 
-  // --- Xử lý nạp văn bản thô (khi kéo thả hoặc dán từ API bên ngoài) ---
+  // --- Xử lý nạp văn bản thô (khi dán hoặc kéo thả tệp) ---
   const handleRawInputLoad = (text) => {
     setRawInput(text);
-    // Tự động kích hoạt tiền xử lý sau khi nạp tệp/dữ liệu API thành công
+    // Tự động kích hoạt tiền xử lý sau khi nạp tệp thành công
     setTimeout(() => {
       try {
         const parsed = parseHotelData(text);
         if (parsed.length > 0) {
           setOriginalData(parsed);
           setCurrentData(parsed);
-          setActiveListId(''); // Đây là tệp mới, chưa được lưu trên DB
+          setActiveListId(''); // Reset activeListId vì đây là tệp mới import
           toast.success(`Đã nạp và xử lý tự động ${parsed.length} bản ghi!`);
         }
       } catch (err) {
@@ -111,19 +121,19 @@ function App() {
     try {
       const parsed = parseHotelData(rawInput);
       if (parsed.length === 0) {
-        toast.warn('Không tìm thấy dữ liệu khách sạn hợp lệ. Hãy kiểm tra định dạng.');
+        toast.warn('Không tìm thấy dữ liệu hợp lệ. Hãy kiểm tra định dạng.');
         return;
       }
       setOriginalData(parsed);
       setCurrentData(parsed);
       setActiveListId('');
-      toast.success(`Đã chuyển đổi và chuẩn hóa thành công ${parsed.length} dòng khách sạn!`);
+      toast.success(`Đã chuyển đổi và chuẩn hóa thành công ${parsed.length} bản ghi!`);
     } catch (err) {
       toast.error(`Lỗi xử lý cú pháp dữ liệu: ${err.message}`);
     }
   };
 
-  // --- Hành động: Kiểm tra trùng lặp diện rộng (gọi đối chiếu LocalStorage) ---
+  // --- Hành động: Kiểm tra trùng lặp diện rộng (gọi đối chiếu Supabase) ---
   const handleCheckDuplicates = async () => {
     if (currentData.length === 0) return;
     
@@ -140,8 +150,8 @@ function App() {
         return;
       }
 
-      // Gọi đối chiếu với dữ liệu LocalStorage
-      const { duplicateUrls } = await dedupService.checkDuplicates(urlsToCheck, activeListId || null);
+      // Gọi đối chiếu với dữ liệu Supabase, truyền dataType và activeListId để làm exclude (loại trừ tỉnh đang xem)
+      const { duplicateUrls } = await dedupService.checkDuplicates(urlsToCheck, activeListId || null, dataType);
       
       const apiDupSet = new Set(duplicateUrls.map(u => u.trim()));
       const localSeenUrls = new Set(); // Dùng Set kiểm tra trùng chéo nội bộ (Internal Duplicates)
@@ -152,7 +162,7 @@ function App() {
         let isDup = false;
 
         if (cleanUrl) {
-          // 1. Kiểm tra xem có trùng với database diện rộng (các danh sách khác trên LocalStorage)
+          // 1. Kiểm tra xem có trùng với database diện rộng (các tỉnh thành khác trên Supabase)
           if (apiDupSet.has(cleanUrl)) {
             isDup = true;
           }
@@ -175,7 +185,7 @@ function App() {
       if (duplicateCount > 0) {
         toast.warning(`Phát hiện ${duplicateCount} bản ghi bị trùng lặp (dòng màu vàng).`);
       } else {
-        toast.success('Kiểm tra hoàn tất: Không phát hiện trùng lặp dữ liệu trên LocalStorage!');
+        toast.success('Kiểm tra hoàn tất: Không phát hiện trùng lặp dữ liệu trên Supabase!');
       }
     } catch (err) {
       toast.error(`Kiểm tra trùng lặp thất bại: ${err.message}`);
@@ -194,7 +204,7 @@ function App() {
       return;
     }
 
-    // Đánh lại số thứ tự STT bắt đầu từ 1 sau khi lọc
+    // Sắp xếp và đánh lại số thứ tự STT bắt từ 1
     const reindexedData = cleanData.map((item, idx) => ({
       ...item,
       stt: idx + 1,
@@ -205,23 +215,23 @@ function App() {
     toast.success(`Đã loại bỏ thành công ${beforeCount - reindexedData.length} dòng trùng lặp!`);
   };
 
-  // --- Hành động: Xem danh sách cũ lưu trữ trên LocalStorage ---
+  // --- Hành động: Xem danh sách cũ lưu trữ trên Supabase ---
   const handleLoadSavedList = async () => {
     if (!selectedListId) return;
     setIsLoading(true);
     try {
-      const list = await listService.getById(selectedListId);
+      const list = await listService.getById(selectedListId, dataType);
       if (list) {
         const dbData = list.data || [];
         setOriginalData(dbData);
         setCurrentData(dbData);
         setActiveListId(list.id);
         
-        // Dán chuỗi JSON của danh sách vào textarea để người dùng có thể chỉnh sửa/sao chép trực tiếp
+        // Dán chuỗi JSON của danh sách vào textarea để người dùng xem/chỉnh sửa
         setRawInput(JSON.stringify(dbData, null, 2));
-        toast.success(`Đã tải lên danh sách "${list.name}" (${dbData.length} bản ghi) từ LocalStorage.`);
+        toast.success(`Đã tải dữ liệu tỉnh "${list.name}" (${dbData.length} bản ghi) từ Supabase.`);
       } else {
-        toast.error('Không tìm thấy danh sách.');
+        toast.error('Không tìm thấy dữ liệu tỉnh thành yêu cầu.');
       }
     } catch (err) {
       toast.error(`Không thể nạp dữ liệu: ${err.message}`);
@@ -230,23 +240,25 @@ function App() {
     }
   };
 
-  // --- Hành động: Xóa hoàn toàn danh sách khỏi LocalStorage ---
+  // --- Hành động: Xóa toàn bộ dữ liệu của tỉnh thành đó trong bảng tương ứng ---
   const handleDeleteSavedList = () => {
     if (!selectedListId) return;
     const listToDelete = lists.find(l => l.id === selectedListId);
     if (!listToDelete) return;
 
-    // Hiển thị ConfirmModal tùy biến
+    const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
+
+    // Hiển thị ConfirmModal
     setConfirmConfig({
       isOpen: true,
-      title: 'Xác nhận xóa danh sách',
-      message: `Bạn có chắc chắn muốn xóa hoàn toàn danh sách "${listToDelete.name}" (${listToDelete.count} bản ghi) khỏi LocalStorage? Thao tác này không thể phục hồi.`,
+      title: 'Xác nhận xóa dữ liệu',
+      message: `Bạn có chắc chắn muốn xóa toàn bộ danh sách ${displayType} của tỉnh "${listToDelete.name}" (${listToDelete.count} bản ghi) khỏi Supabase? Thao tác này không thể phục hồi.`,
       onConfirm: async () => {
         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
         setIsLoading(true);
         try {
-          await listService.delete(selectedListId);
-          toast.success(`Đã xóa danh sách "${listToDelete.name}" khỏi LocalStorage.`);
+          await listService.delete(selectedListId, dataType);
+          toast.success(`Đã xóa sạch dữ liệu ${displayType} của tỉnh "${listToDelete.name}" khỏi Supabase.`);
           
           if (activeListId === selectedListId) {
             setActiveListId('');
@@ -267,8 +279,8 @@ function App() {
     });
   };
 
-  // --- Hành động: Lưu/gộp danh sách lên LocalStorage ---
-  const handleSaveData = async (name, selectedId) => {
+  // --- Hành động: Lưu/gộp danh sách lên Supabase ---
+  const handleSaveData = async (provinceName, selectedId) => {
     if (currentData.length === 0) {
       toast.warn('Bảng hiện đang trống, không có dữ liệu để lưu.');
       return;
@@ -276,8 +288,9 @@ function App() {
 
     setIsLoading(true);
     try {
-      const savedList = await listService.save(name, currentData, selectedId);
-      toast.success(`Đã lưu trữ thành công danh sách "${name}" vào LocalStorage.`);
+      const savedList = await listService.save(provinceName, currentData, selectedId, dataType);
+      const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
+      toast.success(`Đã lưu trữ thành công dữ liệu ${displayType} vào tỉnh "${provinceName}" trên Supabase.`);
       setIsSaveModalOpen(false);
       
       // Cập nhật lại dropdown danh sách
@@ -305,7 +318,7 @@ function App() {
     toast.success('Đã xóa dòng dữ liệu khỏi màn hình.');
   };
 
-  // --- Hành động: Sắp xếp điểm đánh giá từ cao xuống thấp ---
+  // --- Sắp xếp điểm đánh giá từ cao xuống thấp ---
   const handleSortByScore = () => {
     if (currentData.length === 0) return;
     
@@ -316,13 +329,12 @@ function App() {
       const hasA = !isNaN(scoreA);
       const hasB = !isNaN(scoreB);
       
-      if (hasA && hasB) return scoreB - scoreA; // Giảm dần
-      if (hasA && !hasB) return -1; // Đẩy dòng không có điểm xuống cuối
+      if (hasA && hasB) return scoreB - scoreA;
+      if (hasA && !hasB) return -1;
       if (!hasA && hasB) return 1;
       return 0;
     });
 
-    // Đánh số thứ tự STT lại
     const reindexedData = sorted.map((item, idx) => ({
       ...item,
       stt: idx + 1
@@ -332,13 +344,13 @@ function App() {
     toast.success('Đã sắp xếp danh sách theo điểm số đánh giá giảm dần!');
   };
 
-  // --- Hành động: Xuất tệp Excel chứa dữ liệu hiện tại ---
+  // --- Xuất tệp Excel chứa dữ liệu hiện tại ---
   const handleExportExcel = () => {
     if (currentData.length === 0) return;
     
-    const cleanFileName = 'hotels_export.xlsx';
+    const cleanFileName = dataType === 'hotels' ? 'hotels_export.xlsx' : 'restaurants_export.xlsx';
     try {
-      exportToExcel(currentData, cleanFileName);
+      exportToExcel(currentData, cleanFileName, dataType);
       toast.success('Tải xuống file Excel thành công!');
     } catch (err) {
       toast.error(`Lỗi xuất Excel: ${err.message}`);
@@ -352,7 +364,57 @@ function App() {
 
       {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}
       <main className="main-card glass-card">
-        {/* Vùng kéo thả dữ liệu JSON/CSV & Import từ API */}
+        {/* NÚT TAB CHUYỂN ĐỔI SONG SONG GIỮA KHÁCH SẠN VÀ NHÀ HÀNG */}
+        <div style={{
+          display: 'flex',
+          gap: '1rem',
+          marginBottom: '1.5rem',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: '1rem'
+        }}>
+          <button
+            type="button"
+            onClick={() => setDataType('hotels')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '12px',
+              border: 'none',
+              background: dataType === 'hotels' ? 'var(--primary)' : 'var(--bg-card)',
+              color: dataType === 'hotels' ? '#fff' : 'var(--text-main)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: dataType === 'hotels' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            🏨 Khách sạn (Hotels)
+          </button>
+          <button
+            type="button"
+            onClick={() => setDataType('restaurants')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '12px',
+              border: 'none',
+              background: dataType === 'restaurants' ? 'var(--primary)' : 'var(--bg-card)',
+              color: dataType === 'restaurants' ? '#fff' : 'var(--text-main)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: dataType === 'restaurants' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            🍽️ Nhà hàng (Restaurants)
+          </button>
+        </div>
+
+        {/* Vùng kéo thả dữ liệu JSON/CSV */}
         <DragDropInput 
           value={rawInput}
           onChange={setRawInput}
@@ -369,14 +431,14 @@ function App() {
           isChecking={isChecking}
         />
 
-        {/* Trình quản lý lưu trữ: Xem danh sách, Xóa danh sách, Lưu danh sách */}
+        {/* Trình quản lý lưu trữ tỉnh thành: Xem, Xóa, Lưu */}
         <StorageManager
           lists={lists}
           selectedListId={selectedListId}
           onSelectChange={setSelectedListId}
           onLoadList={handleLoadSavedList}
           onDeleteList={handleDeleteSavedList}
-          onOpenSaveModal={() => setIsSaveModalOpen(true)} // Mở modal nhập tên danh sách
+          onOpenSaveModal={() => setIsSaveModalOpen(true)}
           hasData={currentData.length > 0}
         />
       </main>
@@ -384,6 +446,7 @@ function App() {
       {/* 3. Result Section - Trực Quan Hóa Bảng/JSON Kết Quả */}
       <ResultSection
         data={currentData}
+        dataType={dataType}
         onDeleteRow={handleDeleteRow}
         onSortByScore={handleSortByScore}
         onExportExcel={handleExportExcel}
@@ -391,15 +454,16 @@ function App() {
 
       {/* --- CÁC POPUP MODALS TÙY BIẾN --- */}
 
-      {/* Modal Lưu danh sách */}
+      {/* Modal Lưu danh sách tỉnh thành */}
       <SaveModal
         isOpen={isSaveModalOpen}
         lists={lists}
+        dataType={dataType}
         onSave={handleSaveData}
         onCancel={() => setIsSaveModalOpen(false)}
       />
 
-      {/* Modal Xác nhận (Thay thế confirm) */}
+      {/* Modal Xác nhận */}
       <ConfirmModal
         isOpen={confirmConfig.isOpen}
         title={confirmConfig.title}
@@ -408,11 +472,11 @@ function App() {
         onCancel={confirmConfig.onCancel}
       />
 
-      {/* Vòng quay Loading toàn màn hình khi lưu dữ liệu */}
+      {/* Vòng quay Loading toàn màn hình khi đồng bộ */}
       {isLoading && (
         <div className="loading-overlay">
           <div className="spinner"></div>
-          <span>Đang đồng bộ dữ liệu với LocalStorage...</span>
+          <span>Đang đồng bộ dữ liệu với Supabase...</span>
         </div>
       )}
 

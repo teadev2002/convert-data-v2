@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 
 export default function ResultSection({ 
   data, 
+  dataType,
   onDeleteRow, 
   onSortByScore,
   onExportExcel
@@ -13,15 +14,20 @@ export default function ResultSection({
 
   const handleCopyAllJson = () => {
     try {
-      const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website }) => ({
-        stt,
-        title,
-        phone,
-        address,
-        url,
-        totalScore,
-        website
-      }));
+      const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
+        const obj = {
+          stt,
+          title,
+          ...(dataType === 'restaurants' ? { cuisineType } : {}),
+          email: email || '',
+          phone,
+          address,
+          url,
+          totalScore,
+          website
+        };
+        return obj;
+      });
       navigator.clipboard.writeText(JSON.stringify(cleanData, null, 2));
       toast.success('Đã sao chép toàn bộ dữ liệu JSON vào Clipboard!');
     } catch (err) {
@@ -84,9 +90,9 @@ export default function ResultSection({
       {/* Hiển thị nội dung dựa trên tab đang chọn */}
       <div style={{ marginTop: '0.5rem' }}>
         {activeTab === 'table' ? (
-          <TableView data={data} onDeleteRow={onDeleteRow} />
+          <TableView data={data} dataType={dataType} onDeleteRow={onDeleteRow} />
         ) : (
-          <JsonPreview data={data} />
+          <JsonPreview data={data} dataType={dataType} />
         )}
       </div>
     </section>

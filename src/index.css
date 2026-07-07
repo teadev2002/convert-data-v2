@@ -1,5 +1,5 @@
 /* ==========================================
-   DESIGN SYSTEM - HOTEL DATA PROCESSOR & MANAGER
+   DESIGN SYSTEM - DATA PROCESSOR & MANAGER
    ========================================== */
 
 :root {
@@ -14,7 +14,7 @@
   --card-border: rgba(226, 232, 240, 0.8);
   --text-main: #0f172a;
   --text-muted: #64748b;
-  
+
   --primary: #4f46e5;
   --primary-hover: #4338ca;
   --primary-glow: rgba(79, 70, 229, 0.15);
@@ -37,7 +37,7 @@
   --input-bg: #ffffff;
   --input-border: #cbd5e1;
   --input-focus: #818cf8;
-  
+
   --table-header-bg: #f1f5f9;
   --table-row-even: #f8fafc;
   --table-row-hover: #f1f5f9;
@@ -240,7 +240,9 @@ body {
 }
 
 /* Form Controls */
-.form-input, .form-select, .form-textarea {
+.form-input,
+.form-select,
+.form-textarea {
   font-family: var(--font-sans);
   background: var(--input-bg);
   border: 1px solid var(--input-border);
@@ -253,7 +255,9 @@ body {
   width: 100%;
 }
 
-.form-input:focus, .form-select:focus, .form-textarea:focus {
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
   border-color: var(--input-focus);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
@@ -267,12 +271,14 @@ body {
   font-size: 0.875rem !important;
   box-shadow: var(--shadow-lg) !important;
 }
+
 .Toastify__toast-theme--light {
   background: var(--card-bg) !important;
   color: var(--text-main) !important;
   border: 1px solid var(--border-color) !important;
   backdrop-filter: blur(10px) !important;
 }
+
 .Toastify__toast-theme--dark {
   background: var(--card-bg) !important;
   color: var(--text-main) !important;

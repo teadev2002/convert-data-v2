@@ -1,190 +1,250 @@
-const INDEX_KEY = 'hotel_lists_index';
-const DATA_PREFIX = 'hotel_data_';
+import { supabase } from '../utils/supabase';
 
-// Hỗ trợ mô phỏng độ trễ mạng để giao diện hiển thị hiệu ứng tải (loading) mượt mà
-const simulateNetworkDelay = (ms = 250) => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Tiện ích đọc và ghi an toàn vào LocalStorage
- */
-function getListsIndex() {
-  try {
-    const content = localStorage.getItem(INDEX_KEY);
-    return content ? JSON.parse(content) : [];
-  } catch (e) {
-    console.error('Lỗi đọc chỉ mục danh sách:', e);
-    return [];
-  }
-}
-
-function saveListsIndex(index) {
-  try {
-    localStorage.setItem(INDEX_KEY, JSON.stringify(index));
-  } catch (e) {
-    console.error('Lỗi ghi chỉ mục danh sách:', e);
-  }
-}
-
-function getListRecords(listId) {
-  try {
-    const content = localStorage.getItem(`${DATA_PREFIX}${listId}`);
-    return content ? JSON.parse(content) : [];
-  } catch (e) {
-    console.error(`Lỗi đọc dữ liệu danh sách ${listId}:`, e);
-    return [];
-  }
-}
-
-function saveListRecords(listId, records) {
-  try {
-    localStorage.setItem(`${DATA_PREFIX}${listId}`, JSON.stringify(records));
-  } catch (e) {
-    console.error(`Lỗi ghi dữ liệu danh sách ${listId}:`, e);
-  }
+// Tiện ích chuyển đổi Tiếng Việt có dấu thành slug không dấu thân thiện
+function slugify(text) {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Xóa dấu
+    .replace(/[đĐ]/g, 'd')
+    .replace(/([^a-z0-9\s-]|_)+/g, '') // Xóa ký tự đặc biệt
+    .trim()
+    .replace(/\s+/g, '-') // Thay khoảng trắng bằng -
+    .replace(/-+/g, '-'); // Thu gọn nhiều dấu -
 }
 
 export const listService = {
   /**
-   * 1. Lấy danh mục các danh sách (Hotel Lists) từ hotel_lists_index
-   * @returns {Promise<Array>} - Trả về mảng [{ id, name, count }]
+   * 1. Lấy danh mục các tỉnh thành từ bảng provinces và tính số lượng bản ghi tương ứng
+   * @param {string} dataType - Loại dữ liệu truy vấn ('hotels' hoặc 'restaurants')
+   * @returns {Promise<Array>} - Mảng danh sách [{ id, name, slug, count }]
    */
-  async getAll() {
-    await simulateNetworkDelay(150);
-    return getListsIndex();
+  async getAll(dataType = 'hotels') {
+    // Tải tất cả tỉnh thành
+    const { data: provinces, error: provErr } = await supabase
+      .from('provinces')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (provErr) {
+      console.error('Lỗi khi lấy danh sách tỉnh thành:', provErr);
+      throw new Error(`Không thể lấy danh mục tỉnh thành: ${provErr.message}`);
+    }
+
+    if (!provinces || provinces.length === 0) return [];
+
+    // Tải tất cả khóa ngoại province_id từ bảng hotels/restaurants để tự tính toán số lượng ở client (tối ưu hóa hiệu năng)
+    const { data: records, error: recErr } = await supabase
+      .from(dataType)
+      .select('province_id');
+
+    if (recErr) {
+      console.error(`Lỗi tải liên kết dữ liệu ${dataType}:`, recErr);
+      throw new Error(`Lỗi liên kết cơ sở dữ liệu: ${recErr.message}`);
+    }
+
+    const countsMap = {};
+    if (records) {
+      records.forEach(r => {
+        const pid = r.province_id;
+        if (pid) {
+          countsMap[pid] = (countsMap[pid] || 0) + 1;
+        }
+      });
+    }
+
+    return provinces.map(p => ({
+      id: String(p.id),
+      name: p.name,
+      slug: p.slug,
+      count: countsMap[p.id] || 0
+    }));
   },
 
   /**
-   * Lấy dữ liệu chi tiết của danh sách từ hotel_data_[listId]
-   * @param {string} id - ID danh sách
-   * @returns {Promise<Object>} - Trả về đối tượng danh sách đầy đủ { id, name, count, data }
+   * Lấy chi tiết các khách sạn/nhà hàng của một tỉnh thành
+   * @param {string} provinceId - ID của tỉnh thành
+   * @param {string} dataType - Loại dữ liệu ('hotels' hoặc 'restaurants')
+   * @returns {Promise<Object>} - Đối tượng { id, name, count, data: [...] }
    */
-  async getById(id) {
-    await simulateNetworkDelay(150);
-    const index = getListsIndex();
-    const listSummary = index.find(item => item.id === id);
-    if (!listSummary) return null;
+  async getById(provinceId, dataType = 'hotels') {
+    // 1. Lấy chi tiết tỉnh thành
+    const { data: province, error: provErr } = await supabase
+      .from('provinces')
+      .select('*')
+      .eq('id', provinceId)
+      .maybeSingle();
 
-    const data = getListRecords(id);
+    if (provErr) {
+      console.error('Lỗi tải thông tin tỉnh thành:', provErr);
+      throw new Error(`Lỗi tải tỉnh thành: ${provErr.message}`);
+    }
+
+    if (!province) return null;
+
+    // 2. Lấy toàn bộ khách sạn hoặc nhà hàng thuộc tỉnh này, sắp xếp theo title
+    const { data: records, error: recErr } = await supabase
+      .from(dataType)
+      .select('*')
+      .eq('province_id', provinceId)
+      .order('title', { ascending: true });
+
+    if (recErr) {
+      console.error(`Lỗi lấy danh sách ${dataType}:`, recErr);
+      throw new Error(`Lỗi tải danh sách chi tiết: ${recErr.message}`);
+    }
+
+    // Ánh xạ các cột về dạng camelCase
+    const mappedData = (records || []).map((r, idx) => ({
+      stt: idx + 1,
+      id: r.id,
+      title: r.title || '',
+      phone: r.phone || '',
+      address: r.address || '',
+      url: r.url || '',
+      totalScore: r.totalScore !== undefined && r.totalScore !== null ? String(r.totalScore) : '',
+      website: r.website || '',
+      email: r.email || '',
+      ...(dataType === 'restaurants' ? { cuisineType: r.cuisine_type || '' } : {}),
+      isDuplicate: false
+    }));
+
     return {
-      ...listSummary,
-      data
+      id: String(province.id),
+      name: province.name,
+      count: mappedData.length,
+      data: mappedData
     };
   },
 
   /**
-   * 2. Nghiệp vụ Lưu & Gộp dữ liệu (Save/Merge)
-   * @param {string} name - Tên danh sách (tạo mới hoặc chọn trùng tên để gộp)
-   * @param {Array} newData - Mảng bản ghi dữ liệu khách sạn mới
-   * @returns {Promise<Object>} - Trả về thông tin danh sách sau khi lưu
+   * 2. Nghiệp vụ Lưu & Gộp (Save/Merge) cộng thêm dữ liệu theo tỉnh
+   * @param {string} provinceName - Tên tỉnh (người dùng nhập mới hoặc được tự động điền)
+   * @param {Array} newData - Mảng dữ liệu khách sạn/nhà hàng mới cần chèn
+   * @param {string|null} provinceId - ID của tỉnh được chọn (nếu chọn tỉnh cũ)
+   * @param {string} dataType - Loại dữ liệu ('hotels' hoặc 'restaurants')
+   * @returns {Promise<Object>} - Trả về tóm tắt tỉnh thành sau khi lưu { id, name, count }
    */
-  async save(name, newData) {
-    await simulateNetworkDelay(350);
-    const index = getListsIndex();
-
-    // Đảm bảo name là chuỗi hợp lệ, tránh lỗi khi name truyền vào là null/undefined
-    const cleanName = String(name || '').trim();
-    if (!cleanName) {
-      throw new Error('Tên danh sách không được để trống.');
+  async save(provinceName, newData, provinceId = null, dataType = 'hotels') {
+    const cleanProvinceName = String(provinceName || '').trim();
+    if (!cleanProvinceName) {
+      throw new Error('Tên tỉnh thành không được để trống.');
     }
-    
-    // Chuẩn hóa dữ liệu đầu vào theo Schema quy định (7 trường)
-    const cleanNewData = newData.map((item, idx) => ({
-      stt: idx + 1,
+
+    // Chuẩn hóa dữ liệu đầu vào theo Schema quy định
+    const cleanNewData = newData.map(item => ({
       title: item.title || '',
       phone: item.phone || '',
       address: item.address || '',
       url: item.url || '',
       totalScore: item.totalScore !== undefined && item.totalScore !== null ? String(item.totalScore) : '',
-      website: item.website || ''
+      website: item.website || '',
+      email: item.email || null, // Lưu dưới dạng NULL nếu không có địa chỉ email
+      ...(dataType === 'restaurants' ? { cuisine_type: item.cuisineType || '' } : {})
     }));
 
-    // Tìm kiếm xem đã tồn tại danh sách trùng tên chưa (để gộp)
-    const matchedList = index.find(item => item.name.toLowerCase() === cleanName.toLowerCase());
+    let targetProvinceId = provinceId;
 
-    if (matchedList) {
-      // --- LỰA CHỌN: GỘP VÀO DANH SÁCH CŨ ---
-      const listId = matchedList.id;
-      const oldRecords = getListRecords(listId);
-      
-      // Tạo tập hợp các URL cũ để đối chiếu
-      const oldUrlsSet = new Set(oldRecords.map(r => (r.url || '').trim().toLowerCase()));
-      const mergedRecords = [...oldRecords];
+    // 1. Nếu không có provinceId, kiểm tra xem tỉnh thành này đã tồn tại trong DB chưa
+    if (!targetProvinceId) {
+      const { data: existingProv, error: findErr } = await supabase
+        .from('provinces')
+        .select('*')
+        .ilike('name', cleanProvinceName)
+        .maybeSingle();
 
-      // Duyệt qua dữ liệu mới để loại bỏ bản ghi trùng lặp URL
-      for (const newItem of cleanNewData) {
-        const cleanUrl = (newItem.url || '').trim();
-        if (cleanUrl) {
-          // Chỉ thêm vào nếu URL không tồn tại trong danh sách cũ
-          if (!oldUrlsSet.has(cleanUrl.toLowerCase())) {
-            mergedRecords.push(newItem);
-            oldUrlsSet.add(cleanUrl.toLowerCase());
-          }
-        } else {
-          // Nếu không có URL, mặc định vẫn đẩy vào bảng
-          mergedRecords.push(newItem);
+      if (findErr) throw new Error(`Lỗi tìm kiếm tỉnh thành: ${findErr.message}`);
+
+      if (existingProv) {
+        targetProvinceId = existingProv.id;
+      } else {
+        // Tỉnh thành chưa có -> chèn mới vào bảng provinces
+        const newSlug = slugify(cleanProvinceName);
+        const { data: newProv, error: insertProvErr } = await supabase
+          .from('provinces')
+          .insert({ name: cleanProvinceName, slug: newSlug })
+          .select()
+          .single();
+
+        if (insertProvErr) {
+          console.error('Lỗi khi chèn tỉnh thành mới:', insertProvErr);
+          throw new Error(`Lỗi khởi tạo tỉnh thành mới: ${insertProvErr.message}`);
         }
+
+        targetProvinceId = newProv.id;
       }
-
-      // Đánh số thứ tự (STT) lại động từ 1 cho danh sách gộp sạch
-      mergedRecords.forEach((item, idx) => {
-        item.stt = idx + 1;
-      });
-
-      // Lưu mảng gộp đã làm sạch đè lại vào key cũ
-      saveListRecords(listId, mergedRecords);
-
-      // Cập nhật lại chỉ mục
-      matchedList.count = mergedRecords.length;
-      saveListsIndex(index);
-
-      return {
-        id: listId,
-        name: matchedList.name,
-        count: mergedRecords.length
-      };
-    } else {
-      // --- LỰA CHỌN: TẠO MỚI DANH SÁCH ---
-      const newListId = `list_${Date.now()}`;
-      
-      // Đánh số thứ tự STT lại
-      cleanNewData.forEach((item, idx) => {
-        item.stt = idx + 1;
-      });
-
-      // Tạo key hotel_data_[newListId] lưu mảng dữ liệu khách sạn sạch
-      saveListRecords(newListId, cleanNewData);
-
-      // Thêm tên mới và thông tin vào chỉ mục hotel_lists_index
-      const newIndexItem = {
-        id: newListId,
-        name: cleanName,
-        count: cleanNewData.length
-      };
-      index.push(newIndexItem);
-      saveListsIndex(index);
-
-      return newIndexItem;
     }
+
+    // 2. Tải toàn bộ dữ liệu hiện tại của tỉnh này để so khớp trùng lặp URL
+    const { data: oldRecords, error: fetchErr } = await supabase
+      .from(dataType)
+      .select('*')
+      .eq('province_id', targetProvinceId);
+
+    if (fetchErr) throw new Error(`Lỗi tải dữ liệu cũ: ${fetchErr.message}`);
+
+    const oldUrlsSet = new Set((oldRecords || []).map(r => (r.url || '').trim().toLowerCase()));
+    const toInsert = [];
+
+    // Lọc trùng bằng URL và chuẩn bị dữ liệu chèn mới (cộng thêm)
+    for (const newItem of cleanNewData) {
+      const cleanUrl = (newItem.url || '').trim();
+      if (cleanUrl) {
+        if (!oldUrlsSet.has(cleanUrl.toLowerCase())) {
+          toInsert.push({
+            ...newItem,
+            province_id: targetProvinceId
+          });
+          oldUrlsSet.add(cleanUrl.toLowerCase());
+        }
+      } else {
+        toInsert.push({
+          ...newItem,
+          province_id: targetProvinceId
+        });
+      }
+    }
+
+    // Chèn dữ liệu cộng thêm vào bảng
+    if (toInsert.length > 0) {
+      const { error: insertErr } = await supabase
+        .from(dataType)
+        .insert(toInsert);
+
+      if (insertErr) {
+        console.error(`Lỗi chèn dữ liệu ${dataType} lên Supabase:`, insertErr);
+        throw new Error(`Lỗi lưu dữ liệu: ${insertErr.message}`);
+      }
+    }
+
+    const totalCount = (oldRecords || []).length + toInsert.length;
+
+    return {
+      id: String(targetProvinceId),
+      name: cleanProvinceName,
+      count: totalCount
+    };
   },
 
   /**
-   * Xóa danh sách khỏi LocalStorage (xóa cả chỉ mục và dữ liệu chi tiết)
-   * @param {string} id - ID danh sách cần xóa
+   * Xóa toàn bộ dữ liệu của một tỉnh trong bảng dataType
+   * @param {string} provinceId - ID của tỉnh
+   * @param {string} dataType - Loại dữ liệu ('hotels' hoặc 'restaurants')
    * @returns {Promise<boolean>}
    */
-  async delete(id) {
-    await simulateNetworkDelay(150);
-    const index = getListsIndex();
-    const initialLength = index.length;
-    
-    // Lọc bỏ khỏi index
-    const updatedIndex = index.filter(item => item.id !== id);
-    if (updatedIndex.length !== initialLength) {
-      saveListsIndex(updatedIndex);
-      // Xóa key chi tiết hotel_data_[listId]
-      localStorage.removeItem(`${DATA_PREFIX}${id}`);
-      return true;
+  async delete(provinceId, dataType = 'hotels') {
+    const { error } = await supabase
+      .from(dataType)
+      .delete()
+      .eq('province_id', provinceId);
+
+    if (error) {
+      console.error(`Lỗi xóa dữ liệu ${dataType}:`, error);
+      throw new Error(`Lỗi xóa dữ liệu: ${error.message}`);
     }
-    return false;
+
+    return true;
   }
 };
