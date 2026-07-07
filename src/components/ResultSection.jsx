@@ -64,9 +64,9 @@ export default function ResultSection({
             type="button" 
             className="btn btn-secondary" 
             onClick={onSortByScore}
-            title="Sắp xếp danh sách theo điểm số từ cao đến thấp"
+            title="Ưu tiên các cơ sở có Website, Số điện thoại và Điểm đánh giá cao lên hàng đầu"
           >
-            ⭐ Sắp xếp điểm số
+            ⭐ Sắp xếp ưu tiên
           </button>
           <button 
             type="button" 

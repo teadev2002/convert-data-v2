@@ -331,20 +331,37 @@ function App() {
     toast.success('Đã xóa dòng dữ liệu khỏi màn hình.');
   };
 
-  // --- Sắp xếp điểm đánh giá từ cao xuống thấp ---
+  // --- Sắp xếp ưu tiên: Nhiều thông tin hơn (Website -> Phone -> Score) ---
   const handleSortByScore = () => {
     if (currentData.length === 0) return;
     
     const sorted = [...currentData].sort((a, b) => {
+      // 1. Ưu tiên có Website lên hàng đầu
+      const hasWebA = a.website && a.website.trim() !== '' ? 1 : 0;
+      const hasWebB = b.website && b.website.trim() !== '' ? 1 : 0;
+      if (hasWebA !== hasWebB) {
+        return hasWebB - hasWebA;
+      }
+
+      // 2. Đi kèm với Phone (có Phone lên trước)
+      const hasPhoneA = a.phone && a.phone.trim() !== '' ? 1 : 0;
+      const hasPhoneB = b.phone && b.phone.trim() !== '' ? 1 : 0;
+      if (hasPhoneA !== hasPhoneB) {
+        return hasPhoneB - hasPhoneA;
+      }
+
+      // 3. Đi kèm với Điểm đánh giá (Total Score) giảm dần
       const scoreA = parseFloat(a.totalScore);
       const scoreB = parseFloat(b.totalScore);
-      
-      const hasA = !isNaN(scoreA);
-      const hasB = !isNaN(scoreB);
-      
-      if (hasA && hasB) return scoreB - scoreA;
-      if (hasA && !hasB) return -1;
-      if (!hasA && hasB) return 1;
+      const hasScoreA = !isNaN(scoreA);
+      const hasScoreB = !isNaN(scoreB);
+
+      if (hasScoreA && hasScoreB) {
+        return scoreB - scoreA;
+      }
+      if (hasScoreA && !hasScoreB) return -1;
+      if (!hasScoreA && hasScoreB) return 1;
+
       return 0;
     });
 
@@ -354,7 +371,7 @@ function App() {
     }));
 
     setCurrentData(reindexedData);
-    toast.success('Đã sắp xếp danh sách theo điểm số đánh giá giảm dần!');
+    toast.success('Đã sắp xếp danh sách ưu tiên (Website -> Số điện thoại -> Điểm số)!');
   };
 
   // --- Xuất tệp Excel chứa dữ liệu hiện tại ---
