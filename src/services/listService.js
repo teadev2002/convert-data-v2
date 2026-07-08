@@ -133,7 +133,6 @@ export const listService = {
       totalScore: r.totalScore !== undefined && r.totalScore !== null ? String(r.totalScore) : '',
       website: r.website || '',
       email: r.email || '',
-      ...(dataType === 'restaurants' ? { cuisineType: r.cuisine_type || '' } : {}),
       isDuplicate: false
     }));
 
@@ -167,8 +166,7 @@ export const listService = {
       url: item.url || '',
       totalScore: item.totalScore !== undefined && item.totalScore !== null ? String(item.totalScore) : '',
       website: item.website || '',
-      email: item.email || null, // Lưu dưới dạng NULL nếu không có địa chỉ email
-      ...(dataType === 'restaurants' ? { cuisine_type: item.cuisineType || '' } : {})
+      email: item.email || null // Lưu dưới dạng NULL nếu không có địa chỉ email
     }));
 
     let targetProvinceId = provinceId;

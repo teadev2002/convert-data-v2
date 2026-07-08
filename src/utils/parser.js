@@ -9,7 +9,6 @@ const FIELD_ALIASES = {
   url: ['url', 'google_maps_url', 'link', 'maps', 'map', 'link_google_maps', 'google-map'],
   totalScore: ['totalscore', 'total_score', 'score', 'rating', 'diem', 'điểm', 'diem_danh_gia', 'diem_danh_gia_trung_binh'],
   website: ['website', 'web', 'trang_web', 'trangweb', 'url_website'],
-  cuisineType: ['cuisine_type', 'cuisine', 'cuisinetype', 'loai_am_thuc', 'loại ẩm thực', 'am_thuc', 'ẩm thực', 'loai_hinh_am_thuc'],
   email: ['email', 'mail', 'thu_dien_tu', 'thư điện tử', 'contact_email']
 };
 
@@ -59,7 +58,6 @@ export function mapToStandardSchema(rawData) {
     const rawUrl = getValueByAliases(item, FIELD_ALIASES.url);
     const rawScore = getValueByAliases(item, FIELD_ALIASES.totalScore);
     const rawWebsite = getValueByAliases(item, FIELD_ALIASES.website);
-    const rawCuisineType = getValueByAliases(item, FIELD_ALIASES.cuisineType);
     const rawEmail = getValueByAliases(item, FIELD_ALIASES.email);
 
     // Chuẩn hóa định dạng
@@ -68,7 +66,6 @@ export function mapToStandardSchema(rawData) {
     const address = String(rawAddress).trim();
     const url = String(rawUrl).trim();
     const website = String(rawWebsite).trim();
-    const cuisineType = String(rawCuisineType).trim();
     const email = rawEmail ? String(rawEmail).trim() : '';
     
     // Xử lý điểm số thành chuỗi hiển thị ví dụ "4.3", hoặc để trống
@@ -86,7 +83,6 @@ export function mapToStandardSchema(rawData) {
       url,
       totalScore,
       website,
-      cuisineType,
       email,
       isDuplicate: false
     };

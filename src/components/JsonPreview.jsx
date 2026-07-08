@@ -3,11 +3,10 @@ import { toast } from 'react-toastify';
 
 export default function JsonPreview({ data, dataType }) {
   // Lọc bớt cờ isDuplicate khi hiển thị và xuất JSON cho người dùng
-  const cleanJsonData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
+  const cleanJsonData = data.map(({ stt, title, phone, address, url, totalScore, website, email }) => {
     const obj = {
       stt,
       title,
-      ...(dataType === 'restaurants' ? { cuisineType } : {}),
       email: email || '',
       phone,
       address,
