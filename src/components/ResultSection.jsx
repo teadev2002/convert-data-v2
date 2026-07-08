@@ -14,10 +14,11 @@ export default function ResultSection({
 
   const handleCopyAllJson = () => {
     try {
-      const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website, email }) => {
+      const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
         const obj = {
           stt,
           title,
+          ...(dataType === 'restaurants' ? { cuisineType } : {}),
           email: email || '',
           phone,
           address,

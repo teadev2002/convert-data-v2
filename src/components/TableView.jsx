@@ -9,6 +9,8 @@ export default function TableView({ data, dataType, onDeleteRow }) {
     );
   }
 
+  const isRestaurant = dataType === 'restaurants';
+
   return (
     <div className="table-container">
       <table className="hotel-table">
@@ -16,6 +18,7 @@ export default function TableView({ data, dataType, onDeleteRow }) {
           <tr>
             <th className="col-stt">STT</th>
             <th className="col-title">Tên cơ sở</th>
+            {isRestaurant && <th className="col-cuisine">Loại ẩm thực</th>}
             <th className="col-email">Email</th>
             <th className="col-phone">Số điện thoại</th>
             <th className="col-address">Địa chỉ</th>
@@ -40,6 +43,13 @@ export default function TableView({ data, dataType, onDeleteRow }) {
                   </span>
                 )}
               </td>
+
+              {/* Cột loại hình ẩm thực cho nhà hàng */}
+              {isRestaurant && (
+                <td className="col-cuisine" style={{ fontStyle: 'italic' }}>
+                  {row.cuisineType || <span className="empty-text">-</span>}
+                </td>
+              )}
 
               {/* Cột email */}
               <td className="col-email">

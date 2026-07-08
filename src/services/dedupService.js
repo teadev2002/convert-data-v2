@@ -29,6 +29,7 @@ function isMatch2of4(r1, r2) {
 export const dedupService = {
   /**
    * 3. Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check) diện rộng trên Supabase
+   * Kết hợp truy vấn song song cả 2 bảng hotels và restaurants để đối chiếu trùng lặp chéo toàn bộ DB
    * @param {Array<Object>} records - Danh sách các bản ghi cần đối chiếu kiểm tra trùng lặp
    * @param {string|null} provinceId - ID của tỉnh thành đang xem (activeListId) dùng để loại trừ
    * @param {string} dataType - Loại dữ liệu đang đối chiếu ('hotels' hoặc 'restaurants')
@@ -36,43 +37,59 @@ export const dedupService = {
    */
   async checkDuplicates(records, provinceId = null, dataType = 'hotels') {
     try {
-      let query = supabase
-        .from(dataType)
-        .select('url, address, phone, title');
+      // 1. Thực hiện truy vấn song song dữ liệu từ cả 2 bảng hotels và restaurants trên Supabase
+      const [resHotels, resRestaurants] = await Promise.all([
+        supabase.from('hotels').select('url, address, phone, title, province_id'),
+        supabase.from('restaurants').select('url, address, phone, title, province_id')
+      ]);
 
-      // Quy tắc loại trừ: Nếu đang xem tỉnh cũ, chỉ so khớp với các tỉnh thành khác
-      if (provinceId) {
-        query = query.neq('province_id', provinceId);
+      if (resHotels.error) {
+        console.error('Lỗi khi tải bảng hotels:', resHotels.error);
+        throw new Error(`Lỗi truy vấn hotels: ${resHotels.error.message}`);
+      }
+      if (resRestaurants.error) {
+        console.error('Lỗi khi tải bảng restaurants:', resRestaurants.error);
+        throw new Error(`Lỗi truy vấn restaurants: ${resRestaurants.error.message}`);
       }
 
-      const { data: dbRecords, error } = await query;
+      const dbHotels = resHotels.data || [];
+      const dbRestaurants = resRestaurants.data || [];
 
-      if (error) {
-        console.error(`Lỗi khi lấy dữ liệu đối chiếu ${dataType} từ Supabase:`, error);
-        throw new Error(`Lỗi đối chiếu dữ liệu Supabase: ${error.message}`);
-      }
+      // 2. Quy tắc loại trừ tự đối chiếu:
+      // Chỉ loại trừ các bản ghi thuộc tỉnh đang xem (provinceId) của ĐÚNG loại hình dữ liệu hiện tại (dataType)
+      const filteredHotels = (dataType === 'hotels' && provinceId)
+        ? dbHotels.filter(h => String(h.province_id) !== String(provinceId))
+        : dbHotels;
+
+      const filteredRestaurants = (dataType === 'restaurants' && provinceId)
+        ? dbRestaurants.filter(r => String(r.province_id) !== String(provinceId))
+        : dbRestaurants;
+
+      // Hợp nhất toàn bộ dữ liệu đối chiếu từ cả 2 bảng
+      const allDbRecords = [...filteredHotels, ...filteredRestaurants];
 
       const duplicateStts = [];
 
-      if (dbRecords && dbRecords.length > 0) {
+      // 3. Tiến hành đối chiếu thuật toán khớp 2 trong 4 trường
+      if (allDbRecords.length > 0) {
         for (const item of records) {
-          for (const dbRec of dbRecords) {
+          for (const dbRec of allDbRecords) {
             if (isMatch2of4(item, dbRec)) {
               duplicateStts.push(item.stt);
-              break; // Dừng check dbRec tiếp theo cho item này
+              break; // Phát hiện trùng, dừng quét dbRec tiếp theo cho cơ sở này
             }
           }
         }
       }
 
-      // Đảm bảo mảng trả về là duy nhất
+      // Đảm bảo mảng trả về chứa các STT duy nhất
       const uniqueDuplicateStts = Array.from(new Set(duplicateStts));
 
       return {
         duplicateStts: uniqueDuplicateStts
       };
     } catch (error) {
-      console.error('Lỗi khi đối chiếu trùng lặp Supabase:', error);
+      console.error('Lỗi khi đối chiếu trùng lặp chéo Supabase:', error);
       return { duplicateStts: [] };
     }
   }
