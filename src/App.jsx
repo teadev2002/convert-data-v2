@@ -148,27 +148,25 @@ function App() {
       const cleanString = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
       const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
-      // Hàm đối chiếu khớp 2 trong 4 điều kiện
-      const isMatch2of4 = (r1, r2) => {
-        let matchCount = 0;
-        
+      // Hàm đối chiếu khớp ít nhất 1 trong 4 điều kiện
+      const isMatch1of4 = (r1, r2) => {
         const u1 = cleanString(r1.url);
         const u2 = cleanString(r2.url);
-        if (u1 && u2 && u1 === u2) matchCount++;
+        if (u1 && u2 && u1 === u2) return true;
 
         const a1 = cleanString(r1.address);
         const a2 = cleanString(r2.address);
-        if (a1 && a2 && a1 === a2) matchCount++;
+        if (a1 && a2 && a1 === a2) return true;
 
         const p1 = cleanPhone(r1.phone);
         const p2 = cleanPhone(r2.phone);
-        if (p1 && p2 && p1 === p2) matchCount++;
+        if (p1 && p2 && p1 === p2) return true;
 
         const t1 = cleanString(r1.title);
         const t2 = cleanString(r2.title);
-        if (t1 && t2 && t1 === t2) matchCount++;
+        if (t1 && t2 && t1 === t2) return true;
 
-        return matchCount >= 2;
+        return false;
       };
 
       // Cập nhật thuộc tính isDuplicate
@@ -178,7 +176,7 @@ function App() {
         // Kiểm tra trùng chéo nội bộ (Internal Duplicates)
         if (!isDup) {
           for (const seenItem of localSeen) {
-            if (isMatch2of4(item, seenItem)) {
+            if (isMatch1of4(item, seenItem)) {
               isDup = true;
               break;
             }

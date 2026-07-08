@@ -4,6 +4,8 @@ import { toast } from 'react-toastify';
 export default function JsonPreview({ data, dataType }) {
   // Lọc bớt cờ isDuplicate khi hiển thị và xuất JSON cho người dùng
   const cleanJsonData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
+    const cleanWeb = website || '';
+    const isFb = cleanWeb.toLowerCase().includes('facebook.com') || cleanWeb.toLowerCase().includes('fb.com');
     const obj = {
       stt,
       title,
@@ -13,7 +15,8 @@ export default function JsonPreview({ data, dataType }) {
       address,
       url,
       totalScore,
-      website
+      website: isFb ? '' : cleanWeb,
+      facebook: isFb ? cleanWeb : ''
     };
     return obj;
   });

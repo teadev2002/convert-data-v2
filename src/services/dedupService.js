@@ -1,29 +1,27 @@
 import { supabase } from '../utils/supabase';
 
-// Hàm đối chiếu xem hai bản ghi có trùng khớp ít nhất 2 trong 4 trường (url, address, phone, title)
-function isMatch2of4(r1, r2) {
-  let matchCount = 0;
-  
+// Hàm đối chiếu xem hai bản ghi có trùng khớp ít nhất 1 trong 4 trường (url, address, phone, title)
+function isMatch1of4(r1, r2) {
   const clean = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
   const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
   const u1 = clean(r1.url);
   const u2 = clean(r2.url);
-  if (u1 && u2 && u1 === u2) matchCount++;
+  if (u1 && u2 && u1 === u2) return true;
 
   const a1 = clean(r1.address);
   const a2 = clean(r2.address);
-  if (a1 && a2 && a1 === a2) matchCount++;
+  if (a1 && a2 && a1 === a2) return true;
 
   const p1 = cleanPhone(r1.phone);
   const p2 = cleanPhone(r2.phone);
-  if (p1 && p2 && p1 === p2) matchCount++;
+  if (p1 && p2 && p1 === p2) return true;
 
   const t1 = clean(r1.title);
   const t2 = clean(r2.title);
-  if (t1 && t2 && t1 === t2) matchCount++;
+  if (t1 && t2 && t1 === t2) return true;
 
-  return matchCount >= 2;
+  return false;
 }
 
 export const dedupService = {
@@ -70,11 +68,11 @@ export const dedupService = {
 
       const duplicateStts = [];
 
-      // 3. Tiến hành đối chiếu thuật toán khớp 2 trong 4 trường
+      // 3. Tiến hành đối chiếu thuật toán khớp 1 trong 4 trường
       if (allDbRecords.length > 0) {
         for (const item of records) {
           for (const dbRec of allDbRecords) {
-            if (isMatch2of4(item, dbRec)) {
+            if (isMatch1of4(item, dbRec)) {
               duplicateStts.push(item.stt);
               break; // Phát hiện trùng, dừng quét dbRec tiếp theo cho cơ sở này
             }

@@ -1,19 +1,19 @@
 import React from 'react';
 
-export default function ControlBar({ 
-  onProcess, 
-  onCheckDuplicates, 
-  onRemoveDuplicates, 
-  hasRawInput, 
-  hasData, 
-  isChecking 
+export default function ControlBar({
+  onProcess,
+  onCheckDuplicates,
+  onRemoveDuplicates,
+  hasRawInput,
+  hasData,
+  isChecking
 }) {
   return (
     <div className="control-bar">
       {/* Nút Xử lý dữ liệu */}
-      <button 
-        type="button" 
-        className="btn btn-primary" 
+      <button
+        type="button"
+        className="btn btn-primary"
         onClick={onProcess}
         disabled={!hasRawInput}
         title="Phân tích cú pháp văn bản đầu vào và chuẩn hóa dữ liệu"
@@ -22,9 +22,9 @@ export default function ControlBar({
       </button>
 
       {/* Nút Kiểm tra trùng lặp diện rộng */}
-      <button 
-        type="button" 
-        className="btn btn-success" 
+      <button
+        type="button"
+        className="btn btn-success"
         onClick={onCheckDuplicates}
         disabled={!hasData || isChecking}
         title="Đối chiếu danh sách URL hiện tại với cơ sở dữ liệu để tìm trùng lặp"
@@ -40,9 +40,9 @@ export default function ControlBar({
       </button>
 
       {/* Nút Xóa các dòng trùng lặp */}
-      <button 
-        type="button" 
-        className="btn btn-danger" 
+      <button
+        type="button"
+        className="btn btn-danger"
         onClick={onRemoveDuplicates}
         disabled={!hasData}
         title="Lọc bỏ toàn bộ các bản ghi bị gắn cờ trùng lặp khỏi bảng hiển thị"

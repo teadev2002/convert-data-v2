@@ -65,7 +65,17 @@ export function mapToStandardSchema(rawData) {
     // Chuẩn hóa định dạng
     const title = String(rawTitle).trim();
     const phone = normalizePhone(rawPhone);
-    const address = String(rawAddress).trim();
+    
+    // Loại bỏ ký tự lạ, ngắt dòng (\n, \r, \t), giữ lại chữ số & chữ UTF-8 cùng dấu câu thông dụng
+    const cleanAddressStr = (str) => {
+      if (!str) return '';
+      return String(str)
+        .replace(/[\r\n\t]+/g, ' ')
+        .replace(/[^\p{L}\p{N}\s,.\-\/()]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+    const address = cleanAddressStr(rawAddress);
     const url = String(rawUrl).trim();
     const website = String(rawWebsite).trim();
     const cuisineType = String(rawCuisineType).trim();

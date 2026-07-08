@@ -15,30 +15,28 @@ function slugify(text) {
     .replace(/-+/g, '-'); // Thu gọn nhiều dấu -
 }
 
-// Hàm đối chiếu xem hai bản ghi có trùng khớp ít nhất 2 trong 4 trường (url, address, phone, title)
-function isMatch2of4(r1, r2) {
-  let matchCount = 0;
-  
+// Hàm đối chiếu xem hai bản ghi có trùng khớp ít nhất 1 trong 4 trường (url, address, phone, title)
+function isMatch1of4(r1, r2) {
   const clean = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
   const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
   const u1 = clean(r1.url);
   const u2 = clean(r2.url);
-  if (u1 && u2 && u1 === u2) matchCount++;
+  if (u1 && u2 && u1 === u2) return true;
 
   const a1 = clean(r1.address);
   const a2 = clean(r2.address);
-  if (a1 && a2 && a1 === a2) matchCount++;
+  if (a1 && a2 && a1 === a2) return true;
 
   const p1 = cleanPhone(r1.phone);
   const p2 = cleanPhone(r2.phone);
-  if (p1 && p2 && p1 === p2) matchCount++;
+  if (p1 && p2 && p1 === p2) return true;
 
   const t1 = clean(r1.title);
   const t2 = clean(r2.title);
-  if (t1 && t2 && t1 === t2) matchCount++;
+  if (t1 && t2 && t1 === t2) return true;
 
-  return matchCount >= 2;
+  return false;
 }
 
 export const listService = {
@@ -253,13 +251,13 @@ export const listService = {
 
     const toInsert = [];
 
-    // Lọc trùng bằng cách kiểm tra khớp 2 trong 4 điều kiện
+    // Lọc trùng bằng cách kiểm tra khớp 1 trong 4 điều kiện
     for (const newItem of cleanNewData) {
       let isDup = false;
       
       // 1. Đối chiếu với dữ liệu cũ trong database của tỉnh thành này
       for (const oldRec of oldRecords || []) {
-        if (isMatch2of4(newItem, oldRec)) {
+        if (isMatch1of4(newItem, oldRec)) {
           isDup = true;
           break;
         }
@@ -268,7 +266,7 @@ export const listService = {
       // 2. Đối chiếu với các bản ghi mới chuẩn bị chèn (tránh trùng nội bộ tệp chèn)
       if (!isDup) {
         for (const addedRec of toInsert) {
-          if (isMatch2of4(newItem, addedRec)) {
+          if (isMatch1of4(newItem, addedRec)) {
             isDup = true;
             break;
           }

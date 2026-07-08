@@ -15,6 +15,8 @@ export default function ResultSection({
   const handleCopyAllJson = () => {
     try {
       const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
+        const cleanWeb = website || '';
+        const isFb = cleanWeb.toLowerCase().includes('facebook.com') || cleanWeb.toLowerCase().includes('fb.com');
         const obj = {
           stt,
           title,
@@ -24,7 +26,8 @@ export default function ResultSection({
           address,
           url,
           totalScore,
-          website
+          website: isFb ? '' : cleanWeb,
+          facebook: isFb ? cleanWeb : ''
         };
         return obj;
       });
