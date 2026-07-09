@@ -15,28 +15,80 @@ function slugify(text) {
     .replace(/-+/g, '-'); // Thu gọn nhiều dấu -
 }
 
-// Hàm đối chiếu xem hai bản ghi có trùng khớp ít nhất 1 trong 4 trường (url, address, phone, title)
-function isMatch1of4(r1, r2) {
+// Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
+function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: true, title: true }) {
   const clean = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
   const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
-  const u1 = clean(r1.url);
-  const u2 = clean(r2.url);
-  if (u1 && u2 && u1 === u2) return true;
+  let hasCheckedField = false;
 
-  const a1 = clean(r1.address);
-  const a2 = clean(r2.address);
-  if (a1 && a2 && a1 === a2) return true;
+  if (dupFields.url) {
+    hasCheckedField = true;
+    const u1 = clean(r1.url);
+    const u2 = clean(r2.url);
+    if (!u1 || !u2 || u1 !== u2) return false;
+  }
 
-  const p1 = cleanPhone(r1.phone);
-  const p2 = cleanPhone(r2.phone);
-  if (p1 && p2 && p1 === p2) return true;
+  if (dupFields.address) {
+    hasCheckedField = true;
+    const a1 = clean(r1.address);
+    const a2 = clean(r2.address);
+    if (!a1 || !a2 || a1 !== a2) return false;
+  }
 
-  const t1 = clean(r1.title);
-  const t2 = clean(r2.title);
-  if (t1 && t2 && t1 === t2) return true;
+  if (dupFields.phone) {
+    hasCheckedField = true;
+    const p1 = cleanPhone(r1.phone);
+    const p2 = cleanPhone(r2.phone);
+    if (!p1 || !p2 || p1 !== p2) return false;
+  }
 
-  return false;
+  if (dupFields.title) {
+    hasCheckedField = true;
+    const t1 = clean(r1.title);
+    const t2 = clean(r2.title);
+    if (!t1 || !t2 || t1 !== t2) return false;
+  }
+
+  return hasCheckedField;
+}
+
+// Helper để lấy toàn bộ bản ghi của một bảng (tự động phân trang tránh giới hạn 1000 của Supabase)
+async function fetchAll(tableName, selectQuery = '*', filterFn = null) {
+  let results = [];
+  let from = 0;
+  const step = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from(tableName)
+      .select(selectQuery)
+      .range(from, from + step - 1);
+
+    if (filterFn) {
+      query = filterFn(query);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      results = [...results, ...data];
+      if (data.length < step) {
+        hasMore = false;
+      } else {
+        from += step;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return results;
 }
 
 export const listService = {
@@ -46,28 +98,13 @@ export const listService = {
    * @returns {Promise<Array>} - Mảng danh sách [{ id, name, slug, count }]
    */
   async getAll(dataType = 'hotels') {
-    // Tải tất cả tỉnh thành
-    const { data: provinces, error: provErr } = await supabase
-      .from('provinces')
-      .select('*')
-      .order('name', { ascending: true });
-
-    if (provErr) {
-      console.error('Lỗi khi lấy danh sách tỉnh thành:', provErr);
-      throw new Error(`Không thể lấy danh mục tỉnh thành: ${provErr.message}`);
-    }
+    // 1. Tải tất cả tỉnh thành không giới hạn 1000 dòng
+    const provinces = await fetchAll('provinces', '*', query => query.order('name', { ascending: true }));
 
     if (!provinces || provinces.length === 0) return [];
 
-    // Tải tất cả khóa ngoại province_id từ bảng hotels/restaurants để tự tính toán số lượng ở client (tối ưu hóa hiệu năng)
-    const { data: records, error: recErr } = await supabase
-      .from(dataType)
-      .select('province_id');
-
-    if (recErr) {
-      console.error(`Lỗi tải liên kết dữ liệu ${dataType}:`, recErr);
-      throw new Error(`Lỗi liên kết cơ sở dữ liệu: ${recErr.message}`);
-    }
+    // 2. Tải toàn bộ liên kết province_id để tính đếm số lượng (tự động phân trang vượt giới hạn 1000)
+    const records = await fetchAll(dataType, 'province_id');
 
     const countsMap = {};
     if (records) {
@@ -94,7 +131,7 @@ export const listService = {
    * @returns {Promise<Object>} - Đối tượng { id, name, count, data: [...] }
    */
   async getById(provinceId, dataType = 'hotels') {
-    // 1. Lấy chi tiết tỉnh thành
+    // 1. Lấy thông tin tỉnh thành
     const { data: province, error: provErr } = await supabase
       .from('provinces')
       .select('*')
@@ -108,17 +145,10 @@ export const listService = {
 
     if (!province) return null;
 
-    // 2. Lấy toàn bộ khách sạn hoặc nhà hàng thuộc tỉnh này, sắp xếp theo title
-    const { data: records, error: recErr } = await supabase
-      .from(dataType)
-      .select('*')
-      .eq('province_id', provinceId)
-      .order('title', { ascending: true });
-
-    if (recErr) {
-      console.error(`Lỗi lấy danh sách ${dataType}:`, recErr);
-      throw new Error(`Lỗi tải danh sách chi tiết: ${recErr.message}`);
-    }
+    // 2. Lấy toàn bộ khách sạn hoặc nhà hàng thuộc tỉnh này (tự động phân trang không giới hạn 1000 dòng)
+    const records = await fetchAll(dataType, '*', query => 
+      query.eq('province_id', provinceId).order('title', { ascending: true })
+    );
 
     // Ánh xạ các cột về dạng camelCase
     const mappedData = (records || []).map((r, idx) => ({
@@ -149,9 +179,11 @@ export const listService = {
    * @param {Array} newData - Mảng dữ liệu khách sạn/nhà hàng mới cần chèn
    * @param {string|null} provinceId - ID của tỉnh được chọn (nếu chọn tỉnh cũ)
    * @param {string} dataType - Loại dữ liệu ('hotels' hoặc 'restaurants')
+   * @param {string} activeListId - ID của danh sách cũ đang xem
+   * @param {Object} dupFields - Các trường lọc trùng đang chọn
    * @returns {Promise<Object>} - Trả về tóm tắt tỉnh thành sau khi lưu { id, name, count }
    */
-  async save(provinceName, newData, provinceId = null, dataType = 'hotels', activeListId = '') {
+  async save(provinceName, newData, provinceId = null, dataType = 'hotels', activeListId = '', dupFields = { url: true, address: true, phone: true, title: true }) {
     const cleanProvinceName = String(provinceName || '').trim();
     if (!cleanProvinceName) {
       throw new Error('Tên tỉnh thành không được để trống.');
@@ -241,23 +273,18 @@ export const listService = {
       };
     }
 
-    // Chế độ gộp cộng thêm (Append): Tải dữ liệu cũ và đối khớp loại trùng
-    const { data: oldRecords, error: fetchErr } = await supabase
-      .from(dataType)
-      .select('*')
-      .eq('province_id', targetProvinceId);
-
-    if (fetchErr) throw new Error(`Lỗi tải dữ liệu cũ: ${fetchErr.message}`);
+    // Chế độ gộp cộng thêm (Append): Tải dữ liệu cũ và đối khớp loại trùng (phân trang không giới hạn 1000 dòng)
+    const oldRecords = await fetchAll(dataType, '*', query => query.eq('province_id', targetProvinceId));
 
     const toInsert = [];
 
-    // Lọc trùng bằng cách kiểm tra khớp 1 trong 4 điều kiện
+    // Lọc trùng bằng cách kiểm tra khớp trên các trường được chọn
     for (const newItem of cleanNewData) {
       let isDup = false;
       
       // 1. Đối chiếu với dữ liệu cũ trong database của tỉnh thành này
       for (const oldRec of oldRecords || []) {
-        if (isMatch1of4(newItem, oldRec)) {
+        if (isMatchSelected(newItem, oldRec, dupFields)) {
           isDup = true;
           break;
         }
@@ -266,7 +293,7 @@ export const listService = {
       // 2. Đối chiếu với các bản ghi mới chuẩn bị chèn (tránh trùng nội bộ tệp chèn)
       if (!isDup) {
         for (const addedRec of toInsert) {
-          if (isMatch1of4(newItem, addedRec)) {
+          if (isMatchSelected(newItem, addedRec, dupFields)) {
             isDup = true;
             break;
           }

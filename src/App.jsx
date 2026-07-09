@@ -33,6 +33,15 @@ function App() {
   
   const [isLoading, setIsLoading] = useState(false); // Trạng thái tải dữ liệu chung
   const [isChecking, setIsChecking] = useState(false); // Trạng thái gọi API check trùng lặp
+  const [dupFields, setDupFields] = useState({
+    url: true,
+    address: true,
+    phone: true,
+    title: true
+  }); // Trạng thái các checkbox chọn trường lọc trùng
+  const handleDupFieldsChange = (field) => {
+    setDupFields(prev => ({ ...prev, [field]: !prev[field] }));
+  };
   const [isDarkTheme, setIsDarkTheme] = useState(false); // Trạng thái giao diện Tối/Sáng
 
   // --- States quản lý hiển thị các Modals ---
@@ -137,10 +146,17 @@ function App() {
   const handleCheckDuplicates = async () => {
     if (currentData.length === 0) return;
     
+    // Kiểm tra xem có ít nhất 1 checkbox được tick hay không
+    const anyChecked = Object.values(dupFields).some(v => v);
+    if (!anyChecked) {
+      toast.warn('Vui lòng tích chọn ít nhất 1 trường để đối chiếu trùng lặp!');
+      return;
+    }
+
     setIsChecking(true);
     try {
-      // Gọi đối chiếu với dữ liệu Supabase, truyền dataType và activeListId để làm exclude (loại trừ tỉnh đang xem)
-      const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType);
+      // Gọi đối chiếu với dữ liệu Supabase, truyền thêm dupFields làm đối số thứ 4
+      const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType, dupFields);
       
       const apiDupSet = new Set(duplicateStts);
       const localSeen = []; // Lưu các bản ghi đã duyệt qua để kiểm tra trùng chéo nội bộ
@@ -148,25 +164,39 @@ function App() {
       const cleanString = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
       const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
-      // Hàm đối chiếu khớp ít nhất 1 trong 4 điều kiện
-      const isMatch1of4 = (r1, r2) => {
-        const u1 = cleanString(r1.url);
-        const u2 = cleanString(r2.url);
-        if (u1 && u2 && u1 === u2) return true;
+      // Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
+      const isMatchSelected = (r1, r2) => {
+        let hasCheckedField = false;
 
-        const a1 = cleanString(r1.address);
-        const a2 = cleanString(r2.address);
-        if (a1 && a2 && a1 === a2) return true;
+        if (dupFields.url) {
+          hasCheckedField = true;
+          const u1 = cleanString(r1.url);
+          const u2 = cleanString(r2.url);
+          if (!u1 || !u2 || u1 !== u2) return false;
+        }
 
-        const p1 = cleanPhone(r1.phone);
-        const p2 = cleanPhone(r2.phone);
-        if (p1 && p2 && p1 === p2) return true;
+        if (dupFields.address) {
+          hasCheckedField = true;
+          const a1 = cleanString(r1.address);
+          const a2 = cleanString(r2.address);
+          if (!a1 || !a2 || a1 !== a2) return false;
+        }
 
-        const t1 = cleanString(r1.title);
-        const t2 = cleanString(r2.title);
-        if (t1 && t2 && t1 === t2) return true;
+        if (dupFields.phone) {
+          hasCheckedField = true;
+          const p1 = cleanPhone(r1.phone);
+          const p2 = cleanPhone(r2.phone);
+          if (!p1 || !p2 || p1 !== p2) return false;
+        }
 
-        return false;
+        if (dupFields.title) {
+          hasCheckedField = true;
+          const t1 = cleanString(r1.title);
+          const t2 = cleanString(r2.title);
+          if (!t1 || !t2 || t1 !== t2) return false;
+        }
+
+        return hasCheckedField;
       };
 
       // Cập nhật thuộc tính isDuplicate
@@ -176,7 +206,7 @@ function App() {
         // Kiểm tra trùng chéo nội bộ (Internal Duplicates)
         if (!isDup) {
           for (const seenItem of localSeen) {
-            if (isMatch1of4(item, seenItem)) {
+            if (isMatchSelected(item, seenItem)) {
               isDup = true;
               break;
             }
@@ -299,7 +329,7 @@ function App() {
 
     setIsLoading(true);
     try {
-      const savedList = await listService.save(provinceName, currentData, selectedId, dataType, activeListId);
+      const savedList = await listService.save(provinceName, currentData, selectedId, dataType, activeListId, dupFields);
       const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
       toast.success(`Đã lưu trữ thành công dữ liệu ${displayType} vào tỉnh "${provinceName}" trên Supabase.`);
       setIsSaveModalOpen(false);
@@ -457,6 +487,8 @@ function App() {
           hasRawInput={!!rawInput.trim()}
           hasData={currentData.length > 0}
           isChecking={isChecking}
+          dupFields={dupFields}
+          onDupFieldsChange={handleDupFieldsChange}
         />
 
         {/* Trình quản lý lưu trữ tỉnh thành: Xem, Xóa, Lưu */}
