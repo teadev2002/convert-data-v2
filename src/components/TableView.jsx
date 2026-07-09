@@ -9,7 +9,7 @@ export default function TableView({ data, dataType, onDeleteRow }) {
     );
   }
 
-  const isRestaurant = dataType === 'restaurants';
+  const hasExtraCol = dataType === 'restaurants' || dataType === 'spa';
 
   return (
     <div className="table-container">
@@ -18,7 +18,12 @@ export default function TableView({ data, dataType, onDeleteRow }) {
           <tr>
             <th className="col-stt">STT</th>
             <th className="col-title">Tên cơ sở</th>
-            {isRestaurant && <th className="col-cuisine">Loại ẩm thực</th>}
+            <th className="col-neighborhood" style={{ minWidth: '110px' }}>Phường / Xã</th>
+            {hasExtraCol && (
+              <th className="col-cuisine" style={{ minWidth: '120px' }}>
+                {dataType === 'restaurants' ? 'Loại ẩm thực' : 'Loại dịch vụ'}
+              </th>
+            )}
             <th className="col-email">Email</th>
             <th className="col-phone">Số điện thoại</th>
             <th className="col-address">Địa chỉ</th>
@@ -44,8 +49,13 @@ export default function TableView({ data, dataType, onDeleteRow }) {
                 )}
               </td>
 
-              {/* Cột loại hình ẩm thực cho nhà hàng */}
-              {isRestaurant && (
+              {/* Cột Phường / Xã */}
+              <td className="col-neighborhood">
+                {row.neighborhood || <span className="empty-text">-</span>}
+              </td>
+
+              {/* Cột loại hình bổ sung cho nhà hàng hoặc spa */}
+              {hasExtraCol && (
                 <td className="col-cuisine" style={{ fontStyle: 'italic' }}>
                   {row.cuisineType || <span className="empty-text">-</span>}
                 </td>

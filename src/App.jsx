@@ -22,11 +22,12 @@ import './App.css';
 
 function App() {
   // --- States toàn cục quản lý luồng dữ liệu ---
-  const [dataType, setDataType] = useState('hotels'); // 'hotels' hoặc 'restaurants'
+  const [dataType, setDataType] = useState('hotels'); // 'hotels', 'restaurants' hoặc 'spa'
   const [rawInput, setRawInput] = useState(''); // Lưu nội dung nhập liệu hoặc kéo thả thô
   const [originalData, setOriginalData] = useState([]); // Lưu dữ liệu thô sau khi parse (chưa qua lọc)
   const [currentData, setCurrentData] = useState([]); // Dữ liệu đang trực quan hóa (sau khi sắp xếp, lọc...)
-  const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Supabase (provinces)
+  const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Local Storage (provinces)
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState(''); // Bộ lọc Phường / Xã đang chọn
   
   const [selectedListId, setSelectedListId] = useState(''); // ID tỉnh thành đang chọn ở dropdown
   const [activeListId, setActiveListId] = useState(''); // ID tỉnh thành cũ đang hiển thị trên bảng
@@ -35,9 +36,9 @@ function App() {
   const [isChecking, setIsChecking] = useState(false); // Trạng thái gọi API check trùng lặp
   const [dupFields, setDupFields] = useState({
     url: true,
-    address: true,
-    phone: true,
-    title: true
+    address: false,
+    phone: false,
+    title: false
   }); // Trạng thái các checkbox chọn trường lọc trùng
   const handleDupFieldsChange = (field) => {
     setDupFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -64,7 +65,7 @@ function App() {
     }
   }, []);
 
-  // --- Tự động tải lại danh sách tỉnh thành mỗi khi đổi Tab Hotels / Restaurants ---
+  // --- Tự động tải lại danh sách tỉnh thành mỗi khi đổi Tab Hotels / Restaurants / Spa ---
   useEffect(() => {
     loadSavedLists();
     
@@ -74,16 +75,17 @@ function App() {
     setCurrentData([]);
     setOriginalData([]);
     setRawInput('');
+    setSelectedNeighborhood('');
   }, [dataType]);
 
-  // --- Lấy danh mục các tỉnh thành từ Supabase ---
+  // --- Lấy danh mục các tỉnh thành từ Local Storage ---
   const loadSavedLists = async () => {
     setIsLoading(true);
     try {
       const data = await listService.getAll(dataType);
       setLists(data || []);
     } catch (err) {
-      toast.error(`Lỗi tải danh sách từ Supabase: ${err.message}`);
+      toast.error(`Lỗi tải danh sách tỉnh thành: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -105,6 +107,7 @@ function App() {
   // --- Xử lý nạp văn bản thô (khi dán hoặc kéo thả tệp) ---
   const handleRawInputLoad = (text) => {
     setRawInput(text);
+    setSelectedNeighborhood('');
     // Tự động kích hoạt tiền xử lý sau khi nạp tệp thành công
     setTimeout(() => {
       try {
@@ -127,6 +130,7 @@ function App() {
       toast.warn('Vui lòng dán JSON/CSV hoặc kéo thả tệp trước khi xử lý.');
       return;
     }
+    setSelectedNeighborhood('');
     try {
       const parsed = parseHotelData(rawInput);
       if (parsed.length === 0) {
@@ -142,7 +146,7 @@ function App() {
     }
   };
 
-  // --- Hành động: Kiểm tra trùng lặp diện rộng (gọi đối chiếu Supabase) ---
+  // --- Hành động: Kiểm tra trùng lặp diện rộng (gọi đối chiếu Local Storage) ---
   const handleCheckDuplicates = async () => {
     if (currentData.length === 0) return;
     
@@ -155,7 +159,7 @@ function App() {
 
     setIsChecking(true);
     try {
-      // Gọi đối chiếu với dữ liệu Supabase, truyền thêm dupFields làm đối số thứ 4
+      // Gọi đối chiếu với dữ liệu Local Storage
       const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType, dupFields);
       
       const apiDupSet = new Set(duplicateStts);
@@ -226,7 +230,7 @@ function App() {
       if (duplicateCount > 0) {
         toast.warning(`Phát hiện ${duplicateCount} bản ghi bị trùng lặp (dòng màu vàng).`);
       } else {
-        toast.success('Kiểm tra hoàn tất: Không phát hiện trùng lặp dữ liệu trên Supabase!');
+        toast.success('Kiểm tra hoàn tất: Không phát hiện trùng lặp dữ liệu trên Local Storage!');
       }
     } catch (err) {
       toast.error(`Kiểm tra trùng lặp thất bại: ${err.message}`);
@@ -256,10 +260,11 @@ function App() {
     toast.success(`Đã loại bỏ thành công ${beforeCount - reindexedData.length} dòng trùng lặp!`);
   };
 
-  // --- Hành động: Xem danh sách cũ lưu trữ trên Supabase ---
+  // --- Hành động: Xem danh sách cũ lưu trữ trên Local Storage ---
   const handleLoadSavedList = async () => {
     if (!selectedListId) return;
     setIsLoading(true);
+    setSelectedNeighborhood('');
     try {
       const list = await listService.getById(selectedListId, dataType);
       if (list) {
@@ -270,7 +275,7 @@ function App() {
         
         // Dán chuỗi JSON của danh sách vào textarea để người dùng xem/chỉnh sửa
         setRawInput(JSON.stringify(dbData, null, 2));
-        toast.success(`Đã tải dữ liệu tỉnh "${list.name}" (${dbData.length} bản ghi) từ Supabase.`);
+        toast.success(`Đã tải dữ liệu tỉnh "${list.name}" (${dbData.length} bản ghi) từ Local Storage.`);
       } else {
         toast.error('Không tìm thấy dữ liệu tỉnh thành yêu cầu.');
       }
@@ -287,25 +292,26 @@ function App() {
     const listToDelete = lists.find(l => l.id === selectedListId);
     if (!listToDelete) return;
 
-    const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
+    const displayType = dataType === 'hotels' ? 'khách sạn' : dataType === 'restaurants' ? 'nhà hàng' : 'spa';
 
     // Hiển thị ConfirmModal
     setConfirmConfig({
       isOpen: true,
       title: 'Xác nhận xóa dữ liệu',
-      message: `Bạn có chắc chắn muốn xóa toàn bộ danh sách ${displayType} của tỉnh "${listToDelete.name}" (${listToDelete.count} bản ghi) khỏi Supabase? Thao tác này không thể phục hồi.`,
+      message: `Bạn có chắc chắn muốn xóa toàn bộ danh sách ${displayType} của tỉnh "${listToDelete.name}" (${listToDelete.count} bản ghi) khỏi Local Storage? Thao tác này không thể phục hồi.`,
       onConfirm: async () => {
         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
         setIsLoading(true);
         try {
           await listService.delete(selectedListId, dataType);
-          toast.success(`Đã xóa sạch dữ liệu ${displayType} của tỉnh "${listToDelete.name}" khỏi Supabase.`);
+          toast.success(`Đã xóa sạch dữ liệu ${displayType} của tỉnh "${listToDelete.name}" khỏi Local Storage.`);
           
           if (activeListId === selectedListId) {
             setActiveListId('');
             setCurrentData([]);
             setOriginalData([]);
             setRawInput('');
+            setSelectedNeighborhood('');
           }
           
           setSelectedListId('');
@@ -320,7 +326,7 @@ function App() {
     });
   };
 
-  // --- Hành động: Lưu/gộp danh sách lên Supabase ---
+  // --- Hành động: Lưu/gộp danh sách lên Local Storage ---
   const handleSaveData = async (provinceName, selectedId) => {
     if (currentData.length === 0) {
       toast.warn('Bảng hiện đang trống, không có dữ liệu để lưu.');
@@ -330,8 +336,8 @@ function App() {
     setIsLoading(true);
     try {
       const savedList = await listService.save(provinceName, currentData, selectedId, dataType, activeListId, dupFields);
-      const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
-      toast.success(`Đã lưu trữ thành công dữ liệu ${displayType} vào tỉnh "${provinceName}" trên Supabase.`);
+      const displayType = dataType === 'hotels' ? 'khách sạn' : dataType === 'restaurants' ? 'nhà hàng' : 'spa';
+      toast.success(`Đã lưu trữ thành công dữ liệu ${displayType} vào tỉnh "${provinceName}" trên Local Storage.`);
       setIsSaveModalOpen(false);
       
       // Cập nhật lại dropdown danh sách
@@ -347,7 +353,11 @@ function App() {
 
   // --- Hành động: Xóa hàng thủ công khỏi bảng hiển thị ---
   const handleDeleteRow = (index) => {
-    const updatedData = currentData.filter((_, idx) => idx !== index);
+    const targetItem = displayedData[index];
+    if (!targetItem) return;
+
+    // Lọc bỏ đối tượng này khỏi currentData
+    const updatedData = currentData.filter(item => item !== targetItem);
     
     // Đánh lại số thứ tự sau khi xóa
     const reindexedData = updatedData.map((item, idx) => ({
@@ -404,16 +414,37 @@ function App() {
 
   // --- Xuất tệp Excel chứa dữ liệu hiện tại ---
   const handleExportExcel = () => {
-    if (currentData.length === 0) return;
+    if (displayedData.length === 0) return;
     
-    const cleanFileName = dataType === 'hotels' ? 'hotels_export.xlsx' : 'restaurants_export.xlsx';
+    const cleanFileName = dataType === 'hotels' 
+      ? 'hotels_export.xlsx' 
+      : dataType === 'restaurants' 
+      ? 'restaurants_export.xlsx' 
+      : 'spa_export.xlsx';
+      
     try {
-      exportToExcel(currentData, cleanFileName, dataType);
+      exportToExcel(displayedData, cleanFileName, dataType);
       toast.success('Tải xuống file Excel thành công!');
     } catch (err) {
       toast.error(`Lỗi xuất Excel: ${err.message}`);
     }
   };
+
+  // Lọc và tính toán danh sách Phường / Xã duy nhất cho dropdown
+  const getNeighborhoodOptions = () => {
+    const neighborhoods = new Set();
+    currentData.forEach(item => {
+      if (item.neighborhood && item.neighborhood.trim() !== '') {
+        neighborhoods.add(item.neighborhood.trim());
+      }
+    });
+    return Array.from(neighborhoods).sort((a, b) => a.localeCompare(b));
+  };
+
+  // Dữ liệu được hiển thị sau khi qua bộ lọc Phường/Xã
+  const displayedData = selectedNeighborhood
+    ? currentData.filter(item => item.neighborhood && item.neighborhood.trim() === selectedNeighborhood)
+    : currentData;
 
   return (
     <div className="app-container">
@@ -422,13 +453,14 @@ function App() {
 
       {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}
       <main className="main-card glass-card">
-        {/* NÚT TAB CHUYỂN ĐỔI SONG SONG GIỮA KHÁCH SẠN VÀ NHÀ HÀNG */}
+        {/* NÚT TAB CHUYỂN ĐỔI SONG SONG GIỮA KHÁCH SẠN, NHÀ HÀNG VÀ SPA */}
         <div style={{
           display: 'flex',
           gap: '1rem',
           marginBottom: '1.5rem',
           borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '1rem'
+          paddingBottom: '1rem',
+          flexWrap: 'wrap'
         }}>
           <button
             type="button"
@@ -470,6 +502,26 @@ function App() {
           >
             🍽️ Nhà hàng (Restaurants)
           </button>
+          <button
+            type="button"
+            onClick={() => setDataType('spa')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '12px',
+              border: 'none',
+              background: dataType === 'spa' ? 'var(--primary)' : 'var(--bg-card)',
+              color: dataType === 'spa' ? '#fff' : 'var(--text-main)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: dataType === 'spa' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            💆 Spa & Massage (Spa)
+          </button>
         </div>
 
         {/* Vùng kéo thả dữ liệu JSON/CSV */}
@@ -503,9 +555,42 @@ function App() {
         />
       </main>
 
+      {/* Vùng bộ lọc Phường/Xã nếu có dữ liệu */}
+      {currentData.length > 0 && (
+        <div className="filter-bar glass-card" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '1rem', 
+          margin: '0rem 1.5rem 1.5rem 1.5rem',
+          padding: '0.75rem 1.25rem',
+          borderRadius: '12px',
+          border: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-card)',
+          flexWrap: 'wrap'
+        }}>
+          <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            📍 Bộ lọc Phường / Xã:
+          </label>
+          <select
+            className="form-select"
+            value={selectedNeighborhood}
+            onChange={(e) => setSelectedNeighborhood(e.target.value)}
+            style={{ maxWidth: '250px', margin: 0, padding: '0.375rem 1.75rem 0.375rem 0.75rem' }}
+          >
+            <option value="">-- Tất cả Phường / Xã --</option>
+            {getNeighborhoodOptions().map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+            Đang hiển thị: <strong>{displayedData.length}</strong> trên tổng số <strong>{currentData.length}</strong> bản ghi
+          </span>
+        </div>
+      )}
+
       {/* 3. Result Section - Trực Quan Hóa Bảng/JSON Kết Quả */}
       <ResultSection
-        data={currentData}
+        data={displayedData}
         dataType={dataType}
         onDeleteRow={handleDeleteRow}
         onSortByScore={handleSortByScore}
@@ -536,7 +621,7 @@ function App() {
       {isLoading && (
         <div className="loading-overlay">
           <div className="spinner"></div>
-          <span>Đang đồng bộ dữ liệu với Supabase...</span>
+          <span>Đang đồng bộ dữ liệu...</span>
         </div>
       )}
 

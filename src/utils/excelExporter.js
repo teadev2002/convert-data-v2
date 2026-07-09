@@ -1,17 +1,17 @@
 import * as XLSX from 'xlsx';
 
 /**
- * Xuất mảng dữ liệu khách sạn/nhà hàng hiện tại ra file Excel (.xlsx)
+ * Xuất mảng dữ liệu khách sạn/nhà hàng/spa hiện tại ra file Excel (.xlsx)
  * @param {Array} data - Dữ liệu hiện tại (currentData)
- * @param {string} fileName - Tên tệp Excel xuất ra (mặc định: hotels_data.xlsx)
- * @param {string} dataType - Loại dữ liệu đang xuất ('hotels' hoặc 'restaurants')
+ * @param {string} fileName - Tên tệp Excel xuất ra
+ * @param {string} dataType - Loại dữ liệu đang xuất ('hotels', 'restaurants' hoặc 'spa')
  */
 export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'hotels') {
   if (!Array.isArray(data) || data.length === 0) return;
 
-  const isRestaurant = dataType === 'restaurants';
+  const hasExtraCol = dataType === 'restaurants' || dataType === 'spa';
 
-  // 1. Sao chép và định dạng lại cột số điện thoại cũng như đổi tên header theo thứ tự chuẩn
+  // 1. Sao chép và định dạng lại các cột theo chuẩn
   const formattedData = data.map((item, index) => {
     let phoneStr = item.phone || '';
     
@@ -26,7 +26,8 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
     return {
       'STT': index + 1,
       'Title': item.title || '',
-      ...(isRestaurant ? { 'Cuisine Type': item.cuisineType || '' } : {}),
+      'Neighborhood': item.neighborhood || '',
+      ...(hasExtraCol ? { [dataType === 'restaurants' ? 'Cuisine Type' : 'Service Type']: item.cuisineType || '' } : {}),
       'Email': item.email || '',
       'Phone': phoneStr,
       'Address': item.address || '',
@@ -40,11 +41,12 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
   // 2. Chuyển đổi dữ liệu JSON thành Worksheet
   const worksheet = XLSX.utils.json_to_sheet(formattedData);
 
-  // 3. Thiết lập độ rộng cột cho chuyên nghiệp (wch là số ký tự hiển thị tối đa)
+  // 3. Thiết lập độ rộng cột cho chuyên nghiệp
   const columnWidths = [
     { wch: 6 },   // Cột STT
     { wch: 30 },  // Cột Title
-    ...(isRestaurant ? [{ wch: 20 }] : []), // Cột Cuisine Type
+    { wch: 18 },  // Cột Neighborhood
+    ...(hasExtraCol ? [{ wch: 20 }] : []), // Cột Cuisine/Service Type
     { wch: 25 },  // Cột Email
     { wch: 16 },  // Cột Phone
     { wch: 45 },  // Cột Address
@@ -57,11 +59,13 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
 
   // 4. Tạo Workbook mới và gắn Worksheet vào
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(
-    workbook, 
-    worksheet, 
-    isRestaurant ? 'Restaurants Data' : 'Hotels Data'
-  );
+  const sheetName = dataType === 'restaurants' 
+    ? 'Restaurants Data' 
+    : dataType === 'spa' 
+    ? 'Spa Data' 
+    : 'Hotels Data';
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
   // 5. Tiến hành ghi và tải file xuống máy người dùng
   XLSX.writeFile(workbook, fileName);

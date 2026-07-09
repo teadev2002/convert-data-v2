@@ -1,5 +1,3 @@
-import { supabase } from '../utils/supabase';
-
 // Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
 function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: true, title: true }) {
   const clean = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
@@ -38,78 +36,43 @@ function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: 
   return hasCheckedField;
 }
 
-// Helper để lấy toàn bộ bản ghi của một bảng (tự động phân trang để vượt qua giới hạn max_rows = 1000 của Supabase)
-async function fetchAll(tableName, selectQuery = '*') {
-  let results = [];
-  let from = 0;
-  const step = 1000;
-  let hasMore = true;
-
-  while (hasMore) {
-    const { data, error } = await supabase
-      .from(tableName)
-      .select(selectQuery)
-      .range(from, from + step - 1);
-
-    if (error) {
-      throw error;
-    }
-
-    if (data && data.length > 0) {
-      results = [...results, ...data];
-      if (data.length < step) {
-        hasMore = false;
-      } else {
-        from += step;
-      }
-    } else {
-      hasMore = false;
-    }
-  }
-
-  return results;
-}
-
 export const dedupService = {
   /**
-   * 3. Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check) diện rộng trên Supabase
-   * Kết hợp truy vấn song song cả 2 bảng hotels và restaurants để đối chiếu trùng lặp chéo toàn bộ DB
+   * Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check) diện rộng trên Local Storage
+   * Quét tất cả các key lưu trữ dạng [dataType]-[provinceName] để làm đối chiếu loại trùng
    * @param {Array<Object>} records - Danh sách các bản ghi cần đối chiếu kiểm tra trùng lặp
-   * @param {string|null} provinceId - ID của tỉnh thành đang xem (activeListId) dùng để loại trừ
-   * @param {string} dataType - Loại dữ liệu đang đối chiếu ('hotels' hoặc 'restaurants')
+   * @param {string|null} provinceId - Tên tỉnh thành đang xem (activeListId) dùng để loại trừ
+   * @param {string} dataType - Loại dữ liệu đang đối chiếu ('hotels', 'restaurants' hoặc 'spa')
    * @param {Object} dupFields - Đối tượng chứa trạng thái kích hoạt của các trường lọc trùng
    * @returns {Promise<{duplicateStts: Array<number>}>}
    */
   async checkDuplicates(records, provinceId = null, dataType = 'hotels', dupFields = { url: true, address: true, phone: true, title: true }) {
     try {
-      // 1. Thực hiện truy vấn song song dữ liệu từ cả 2 bảng hotels và restaurants trên Supabase (không giới hạn 1000 dòng)
-      const [dbHotels, dbRestaurants] = await Promise.all([
-        fetchAll('hotels', 'url, address, phone, title, province_id'),
-        fetchAll('restaurants', 'url, address, phone, title, province_id')
-      ]);
+      const activeKey = provinceId ? `${dataType}-${provinceId}` : null;
+      let allDbRecords = [];
 
-      // 2. Quy tắc loại trừ tự đối chiếu:
-      // Chỉ loại trừ các bản ghi thuộc tỉnh đang xem (provinceId) của ĐÚNG loại hình dữ liệu hiện tại (dataType)
-      const filteredHotels = (dataType === 'hotels' && provinceId)
-        ? dbHotels.filter(h => String(h.province_id) !== String(provinceId))
-        : dbHotels;
-
-      const filteredRestaurants = (dataType === 'restaurants' && provinceId)
-        ? dbRestaurants.filter(r => String(r.province_id) !== String(provinceId))
-        : dbRestaurants;
-
-      // Hợp nhất toàn bộ dữ liệu đối chiếu từ cả 2 bảng
-      const allDbRecords = [...filteredHotels, ...filteredRestaurants];
+      // Quét tất cả các key trong localStorage để gộp dữ liệu đối chiếu chéo
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('hotels-') || key.startsWith('restaurants-') || key.startsWith('spa-'))) {
+          // Bỏ qua key của danh sách hiện đang mở để tránh tự đối chiếu trùng chính nó
+          if (activeKey && key.toLowerCase() === activeKey.toLowerCase()) {
+            continue;
+          }
+          const data = JSON.parse(localStorage.getItem(key) || '[]');
+          allDbRecords = [...allDbRecords, ...data];
+        }
+      }
 
       const duplicateStts = [];
 
-      // 3. Tiến hành đối chiếu thuật toán khớp trên các trường được kích hoạt
+      // Tiến hành đối chiếu trùng khớp
       if (allDbRecords.length > 0) {
         for (const item of records) {
           for (const dbRec of allDbRecords) {
             if (isMatchSelected(item, dbRec, dupFields)) {
               duplicateStts.push(item.stt);
-              break; // Phát hiện trùng, dừng quét dbRec tiếp theo cho cơ sở này
+              break; // Phát hiện trùng, dừng quét tiếp
             }
           }
         }
@@ -122,7 +85,7 @@ export const dedupService = {
         duplicateStts: uniqueDuplicateStts
       };
     } catch (error) {
-      console.error('Lỗi khi đối chiếu trùng lặp chéo Supabase:', error);
+      console.error('Lỗi khi đối chiếu trùng lặp Local Storage:', error);
       return { duplicateStts: [] };
     }
   }
