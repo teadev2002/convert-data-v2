@@ -71,6 +71,70 @@ export const provinces = [
     label: "Tây Ninh (Long An - Tây Ninh)"
   },
   {
+    value: "Hà Nội",
+    label: "Hà Nội"
+  },
+  {
+    value: "Huế",
+    label: "Huế"
+  },
+  {
+    value: "Cần Thơ",
+    label: "Cần Thơ (Cần Thơ - Hậu Giang - Sóc Trăng)"
+  },
+  {
+    value: "Cà Mau",
+    label: "Cà Mau (Cà Mau - Bạc Liêu)"
+  },
+  {
+    value: "An Giang",
+    label: "An Giang (An Giang - Kiên Giang)"
+  },
+  {
+    value: "Đồng Tháp",
+    label: "Đồng Tháp (Đồng Tháp - Tiền Giang)"
+  },
+  {
+    value: "Vĩnh Long",
+    label: "Vĩnh Long (Vĩnh Long - Bến Tre - Trà Vinh)"
+  },
+  {
+    value: "Cao Bằng",
+    label: "Cao Bằng"
+  },
+  {
+    value: "Lạng Sơn",
+    label: "Lạng Sơn"
+  },
+  {
+    value: "Quảng Ninh",
+    label: "Quảng Ninh"
+  },
+  {
+    value: "Thanh Hóa",
+    label: "Thanh Hóa"
+  },
+  {
+    value: "Nghệ An",
+    label: "Nghệ An"
+  },
+  {
+    value: "Hà Tĩnh",
+    label: "Hà Tĩnh"
+  },
+  {
+    value: "Sơn La",
+    label: "Sơn La"
+  },
+  {
+    value: "Điện Biên",
+    label: "Điện Biên"
+  },
+  {
+    value: "Lai Châu",
+    label: "Lai Châu"
+  },
+  {
     value: "Thành phố Hồ Chí Minh",
     label: "Thành phố Hồ Chí Minh (TP.HCM - Bình Dương - Bà Rịa - Vũng Tàu)"
   }
