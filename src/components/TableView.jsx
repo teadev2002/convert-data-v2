@@ -18,7 +18,6 @@ export default function TableView({ data, dataType, onDeleteRow }) {
           <tr>
             <th className="col-stt">STT</th>
             <th className="col-title">Tên cơ sở</th>
-            <th className="col-neighborhood" style={{ minWidth: '110px' }}>Phường / Xã</th>
             {hasExtraCol && (
               <th className="col-cuisine" style={{ minWidth: '120px' }}>
                 {dataType === 'restaurants' ? 'Loại ẩm thực' : 'Loại dịch vụ'}
@@ -47,11 +46,6 @@ export default function TableView({ data, dataType, onDeleteRow }) {
                     ⚠️ Trùng
                   </span>
                 )}
-              </td>
-
-              {/* Cột Phường / Xã */}
-              <td className="col-neighborhood">
-                {row.neighborhood || <span className="empty-text">-</span>}
               </td>
 
               {/* Cột loại hình bổ sung cho nhà hàng hoặc spa */}

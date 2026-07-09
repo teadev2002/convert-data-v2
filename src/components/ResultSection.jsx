@@ -14,13 +14,12 @@ export default function ResultSection({
 
   const handleCopyAllJson = () => {
     try {
-      const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email, neighborhood }) => {
+      const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
         const cleanWeb = website || '';
         const isFb = cleanWeb.toLowerCase().includes('facebook.com') || cleanWeb.toLowerCase().includes('fb.com');
         const obj = {
           stt,
           title,
-          neighborhood: neighborhood || '',
           ...((dataType === 'restaurants' || dataType === 'spa') ? { cuisineType } : {}),
           email: email || '',
           phone,

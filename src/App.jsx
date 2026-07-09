@@ -369,26 +369,33 @@ function App() {
     toast.success('Đã xóa dòng dữ liệu khỏi màn hình.');
   };
 
-  // --- Sắp xếp ưu tiên: Nhiều thông tin hơn (Website -> Phone -> Score) ---
+  // --- Sắp xếp ưu tiên: Nhiều thông tin hơn (Email -> Website -> Phone -> Score) ---
   const handleSortByScore = () => {
     if (currentData.length === 0) return;
     
     const sorted = [...currentData].sort((a, b) => {
-      // 1. Ưu tiên có Website lên hàng đầu
+      // 1. Ưu tiên có Email lên hàng đầu
+      const hasEmailA = a.email && a.email.trim() !== '' ? 1 : 0;
+      const hasEmailB = b.email && b.email.trim() !== '' ? 1 : 0;
+      if (hasEmailA !== hasEmailB) {
+        return hasEmailB - hasEmailA;
+      }
+
+      // 2. Ưu tiên có Website tiếp theo
       const hasWebA = a.website && a.website.trim() !== '' ? 1 : 0;
       const hasWebB = b.website && b.website.trim() !== '' ? 1 : 0;
       if (hasWebA !== hasWebB) {
         return hasWebB - hasWebA;
       }
 
-      // 2. Đi kèm với Phone (có Phone lên trước)
+      // 3. Đi kèm với Phone (có Phone lên trước)
       const hasPhoneA = a.phone && a.phone.trim() !== '' ? 1 : 0;
       const hasPhoneB = b.phone && b.phone.trim() !== '' ? 1 : 0;
       if (hasPhoneA !== hasPhoneB) {
         return hasPhoneB - hasPhoneA;
       }
 
-      // 3. Đi kèm với Điểm đánh giá (Total Score) giảm dần
+      // 4. Đi kèm với Điểm đánh giá (Total Score) giảm dần
       const scoreA = parseFloat(a.totalScore);
       const scoreB = parseFloat(b.totalScore);
       const hasScoreA = !isNaN(scoreA);

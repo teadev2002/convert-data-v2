@@ -26,7 +26,6 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
     return {
       'STT': index + 1,
       'Title': item.title || '',
-      'Neighborhood': item.neighborhood || '',
       ...(hasExtraCol ? { [dataType === 'restaurants' ? 'Cuisine Type' : 'Service Type']: item.cuisineType || '' } : {}),
       'Email': item.email || '',
       'Phone': phoneStr,
@@ -45,7 +44,6 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
   const columnWidths = [
     { wch: 6 },   // Cột STT
     { wch: 30 },  // Cột Title
-    { wch: 18 },  // Cột Neighborhood
     ...(hasExtraCol ? [{ wch: 20 }] : []), // Cột Cuisine/Service Type
     { wch: 25 },  // Cột Email
     { wch: 16 },  // Cột Phone
