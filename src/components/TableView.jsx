@@ -42,8 +42,23 @@ export default function TableView({ data, dataType, onDeleteRow }) {
               <td className="col-title">
                 {row.title || <span className="empty-text">Không có tên</span>}
                 {row.isDuplicate && (
-                  <span className="badge-duplicate" style={{ marginLeft: '0.5rem' }}>
-                    ⚠️ Trùng
+                  <span 
+                    className="badge-duplicate" 
+                    style={{ 
+                      marginLeft: '0.5rem',
+                      backgroundColor: row.duplicateSource === 'file' ? '#e67e22' : 'var(--danger)',
+                      color: '#fff',
+                      padding: '0.15rem 0.4rem',
+                      borderRadius: '4px',
+                      fontSize: '0.725rem',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.2rem'
+                    }}
+                    title={row.duplicateSource === 'file' ? 'Bản ghi này trùng với một bản ghi khác có sẵn trong tệp tin bạn vừa nạp' : 'Bản ghi này đã tồn tại trong kho Local Storage'}
+                  >
+                    ⚠️ {row.duplicateSource === 'file' ? 'Trùng trong tệp' : 'Trùng trong kho'}
                   </span>
                 )}
               </td>

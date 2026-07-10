@@ -203,15 +203,21 @@ function App() {
         return hasCheckedField;
       };
 
-      // Cập nhật thuộc tính isDuplicate
+      // Cập nhật thuộc tính isDuplicate và duplicateSource
       const updatedData = currentData.map(item => {
         let isDup = apiDupSet.has(item.stt);
+        let dupSource = null;
+
+        if (isDup) {
+          dupSource = 'storage'; // Trùng với dữ liệu đã lưu trong kho Local Storage
+        }
 
         // Kiểm tra trùng chéo nội bộ (Internal Duplicates)
         if (!isDup) {
           for (const seenItem of localSeen) {
             if (isMatchSelected(item, seenItem)) {
               isDup = true;
+              dupSource = 'file'; // Trùng nội bộ trong tệp vừa nạp
               break;
             }
           }
@@ -220,7 +226,8 @@ function App() {
         localSeen.push(item);
         return {
           ...item,
-          isDuplicate: isDup
+          isDuplicate: isDup,
+          duplicateSource: dupSource
         };
       });
 
@@ -228,9 +235,16 @@ function App() {
 
       const duplicateCount = updatedData.filter(item => item.isDuplicate).length;
       if (duplicateCount > 0) {
-        toast.warning(`Phát hiện ${duplicateCount} bản ghi bị trùng lặp (dòng màu vàng).`);
+        const storageCount = updatedData.filter(item => item.duplicateSource === 'storage').length;
+        const fileCount = updatedData.filter(item => item.duplicateSource === 'file').length;
+        
+        let msg = `Phát hiện ${duplicateCount} bản ghi bị trùng lặp:`;
+        if (storageCount > 0) msg += `\n• ${storageCount} dòng trùng dữ liệu trong kho Local Storage.`;
+        if (fileCount > 0) msg += `\n• ${fileCount} dòng trùng nội bộ trong tệp vừa nạp.`;
+        
+        toast.warning(msg, { autoClose: 5000 });
       } else {
-        toast.success('Kiểm tra hoàn tất: Không phát hiện trùng lặp dữ liệu trên Local Storage!');
+        toast.success('Kiểm tra hoàn tất: Không phát hiện trùng lặp dữ liệu!');
       }
     } catch (err) {
       toast.error(`Kiểm tra trùng lặp thất bại: ${err.message}`);

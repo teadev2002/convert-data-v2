@@ -7,9 +7,10 @@ const FIELD_ALIASES = {
   phone: ['phone', 'so_dien_thoai', 'sdt', 'sđt', 'dien_thoai', 'điện thoại', 'tel', 'sdt_goc', 'sđt_gốc'],
   address: ['address', 'dia_chi', 'địa chỉ', 'location', 'dia-chi', 'dia_chi_co_so'],
   url: ['url', 'google_maps_url', 'link', 'maps', 'map', 'link_google_maps', 'google-map'],
-  totalScore: ['totalscore', 'total_score', 'score', 'rating', 'diem', 'điểm', 'diem_danh_gia', 'diem_danh_gia_trung_binh'],
+  totalScore: ['total score', 'totalscore', 'total_score', 'score', 'rating', 'diem', 'điểm', 'diem_danh_gia', 'diem_danh_gia_trung_binh'],
   website: ['website', 'web', 'trang_web', 'trangweb', 'url_website'],
-  cuisineType: ['cuisine_type', 'cuisine', 'cuisinetype', 'loai_am_thuc', 'loại ẩm thực', 'am_thuc', 'ẩm thực', 'loai_hinh_am_thuc', 'categoryname', 'category_name', 'category'],
+  facebook: ['facebook', 'fb', 'link_facebook', 'facebook_url', 'facebook url'],
+  cuisineType: ['cuisine type', 'service type', 'cuisine_type', 'service_type', 'cuisine', 'cuisinetype', 'loai_am_thuc', 'loại ẩm thực', 'am_thuc', 'ẩm thực', 'loai_hinh_am_thuc', 'categoryname', 'category_name', 'category'],
   email: ['email', 'mail', 'thu_dien_tu', 'thư điện tử', 'contact_email'],
   neighborhood: ['neighborhood', 'phuong', 'phường', 'phuong_xa', 'phường xã', 'khu_vuc', 'khu vực', 'sub_district', 'subdistrict', 'ward', 'phuongxa']
 };
@@ -60,6 +61,7 @@ export function mapToStandardSchema(rawData) {
     const rawUrl = getValueByAliases(item, FIELD_ALIASES.url);
     const rawScore = getValueByAliases(item, FIELD_ALIASES.totalScore);
     const rawWebsite = getValueByAliases(item, FIELD_ALIASES.website);
+    const rawFacebook = getValueByAliases(item, FIELD_ALIASES.facebook);
     const rawCuisineType = getValueByAliases(item, FIELD_ALIASES.cuisineType);
     const rawEmail = getValueByAliases(item, FIELD_ALIASES.email);
     const rawNeighborhood = getValueByAliases(item, FIELD_ALIASES.neighborhood);
@@ -79,7 +81,10 @@ export function mapToStandardSchema(rawData) {
     };
     const address = cleanAddressStr(rawAddress);
     const url = String(rawUrl).trim();
-    const website = String(rawWebsite).trim();
+    
+    // Nếu có cột Facebook riêng biệt từ tệp Excel, gộp nó vào Website để xử lý đồng bộ
+    const website = String(rawWebsite || rawFacebook || '').trim();
+    
     const cuisineType = String(rawCuisineType).trim();
     const email = rawEmail ? String(rawEmail).trim() : '';
     const neighborhood = String(rawNeighborhood).trim();
@@ -108,7 +113,7 @@ export function mapToStandardSchema(rawData) {
 }
 
 /**
- * Phân tích văn bản thô đầu vào (JSON hoặc CSV) thành dữ liệu Schema chuẩn
+ * Phân tích văn bản thô đầu vào (JSON hoặc CSV/TSV) thành dữ liệu Schema chuẩn
  * @param {string} rawInput - Nội dung chữ trong textarea hoặc tệp kéo thả
  * @returns {Array<Object>} - Dữ liệu khách sạn chuẩn hóa
  */
@@ -131,25 +136,28 @@ export function parseHotelData(rawInput) {
       parsedRaw = parseCsv(trimmed);
     }
   } else {
-    // 2. Nhận diện dạng CSV
+    // 2. Nhận diện dạng CSV / TSV
     parsedRaw = parseCsv(trimmed);
   }
 
-  // 3. Ánh xạ mảng thô sang Schema chuẩn và chuẩn hóa số điện thoại
+  // 3. Ánh xạ mảng thô sang Schema chuẩn
   return mapToStandardSchema(parsedRaw);
 }
 
 /**
- * Phân tích dữ liệu dạng CSV bằng thư viện PapaParse
+ * Phân tích dữ liệu dạng CSV/TSV bằng thư viện PapaParse
  * @param {string} csvText - Văn bản định dạng CSV
  * @returns {Array<Object>} - Mảng dữ liệu thô
  */
 function parseCsv(csvText) {
+  // Tự động phát hiện delimiter là tab (\t) nếu copy-paste từ Excel sang textarea
+  const delimiter = csvText.includes('\t') ? '\t' : undefined;
+  
   const result = Papa.parse(csvText, {
     header: true,
     skipEmptyLines: true,
+    delimiter: delimiter,
     dynamicTyping: false // Giữ nguyên chuỗi để tránh làm mất số 0 ở đầu số điện thoại
   });
-  
   return result.data || [];
 }
