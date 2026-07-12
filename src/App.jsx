@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Alert, Button } from 'antd';
 
 // Import các components
 import Header from './components/Header.jsx';
@@ -44,9 +45,128 @@ function App() {
     setDupFields(prev => ({ ...prev, [field]: !prev[field] }));
   };
   const [isDarkTheme, setIsDarkTheme] = useState(false); // Trạng thái giao diện Tối/Sáng
+  const [lastSavedTime, setLastSavedTime] = useState(0); // Trigger để tính toán lại hasUnsavedData sau khi lưu/xóa
+
+  // --- Tự động kiểm tra xem bảng hiển thị có chứa bản ghi chưa được lưu hay không ---
+  const hasUnsavedData = useMemo(() => {
+    if (currentData.length === 0) return false;
+    
+    // Tải tất cả bản ghi đã lưu từ Local Storage để đối chiếu
+    let allDbRecords = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('hotels-') || key.startsWith('restaurants-') || key.startsWith('spa-'))) {
+        const data = JSON.parse(localStorage.getItem(key) || '[]');
+        allDbRecords = [...allDbRecords, ...data];
+      }
+    }
+
+    const cleanString = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
+    const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
+
+    // Nếu có ít nhất 1 dòng trong currentData mà KHÔNG tìm thấy dòng trùng trong kho, tức là có dữ liệu mới chưa lưu
+    return currentData.some(item => {
+      const isSaved = allDbRecords.some(dbRec => {
+        let hasCheckedField = false;
+
+        if (dupFields.url) {
+          hasCheckedField = true;
+          const u1 = cleanString(item.url);
+          const u2 = cleanString(dbRec.url);
+          if (!u1 || !u2 || u1 !== u2) return false;
+        }
+
+        if (dupFields.address) {
+          hasCheckedField = true;
+          const a1 = cleanString(item.address);
+          const a2 = cleanString(dbRec.address);
+          if (!a1 || !a2 || a1 !== a2) return false;
+        }
+
+        if (dupFields.phone) {
+          hasCheckedField = true;
+          const p1 = cleanPhone(item.phone);
+          const p2 = cleanPhone(dbRec.phone);
+          if (!p1 || !p2 || p1 !== p2) return false;
+        }
+
+        if (dupFields.title) {
+          hasCheckedField = true;
+          const t1 = cleanString(item.title);
+          const t2 = cleanString(dbRec.title);
+          if (!t1 || !t2 || t1 !== t2) return false;
+        }
+
+        return hasCheckedField;
+      });
+
+      return !isSaved;
+    });
+  }, [currentData, dupFields, lastSavedTime]);
+
+
+
+  // --- Tự động cập nhật thông tin cảnh báo bằng Ant Design Alert dựa trên dữ liệu hiện tại ---
+  useEffect(() => {
+    if (currentData.length === 0) {
+      setActiveAlert(null);
+      return;
+    }
+
+    const duplicateCount = currentData.filter(item => item.isDuplicate).length;
+
+    if (duplicateCount > 0) {
+      const storageCount = currentData.filter(item => item.duplicateSource === 'storage').length;
+      const fileCount = currentData.filter(item => item.duplicateSource === 'file').length;
+
+      // Nếu toàn bộ dữ liệu bị trùng lặp (không có dòng mới)
+      if (duplicateCount === currentData.length) {
+        setActiveAlert({
+          type: 'info',
+          message: 'Toàn bộ dữ liệu đã trùng khớp (Trùng 100%)',
+          description: `Tất cả ${duplicateCount} bản ghi vừa nạp đều đã tồn tại trong kho lưu trữ Local Storage (${storageCount} dòng trùng trong kho, ${fileCount} dòng trùng chéo trong tệp). Vui lòng nhấn nút bên phải để xóa các bản ghi trùng lặp. Đảm bảo bạn chọn đúng loại hình dịch vụ và đúng phường/xã để kiểm trùng cho lần sau.`,
+          action: (
+            <Button size="small" type="primary" onClick={() => handleRemoveDuplicates()}>
+              Xóa trùng lặp
+            </Button>
+          )
+        });
+      } else {
+        // Trùng lặp một phần
+        setActiveAlert({
+          type: 'warning',
+          message: `Phát hiện ${duplicateCount} dòng trùng lặp`,
+          description: `Tìm thấy ${storageCount} dòng trùng trong kho Local Storage và ${fileCount} dòng trùng chéo trong tệp vừa nạp. Các bản ghi này đã được tô màu vàng trên bảng hiển thị.`,
+          action: (
+            <Button size="small" danger onClick={() => handleRemoveDuplicates()}>
+              Xóa trùng lặp
+            </Button>
+          )
+        });
+      }
+    } else {
+      // Không có dòng trùng nào
+      if (hasUnsavedData) {
+        setActiveAlert({
+          type: 'warning',
+          message: 'Cảnh báo: Dữ liệu chưa được lưu (Unsaved Changes)',
+          description: 'Bạn có các thay đổi chưa được lưu vào Local Storage. Nếu tải lại trang (Reload) hoặc đóng tab trình duyệt, toàn bộ dữ liệu này sẽ bị mất.',
+          action: (
+            <Button size="small" type="primary" onClick={() => setIsSaveModalOpen(true)}>
+              Lưu ngay
+            </Button>
+          )
+        });
+      } else {
+        // Tất cả dữ liệu đã lưu và không có dòng trùng
+        setActiveAlert(null);
+      }
+    }
+  }, [currentData, hasUnsavedData]);
 
   // --- States quản lý hiển thị các Modals ---
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [activeAlert, setActiveAlert] = useState(null); // Trạng thái hiển thị thông báo antd Alert
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
     title: '',
@@ -76,6 +196,7 @@ function App() {
     setOriginalData([]);
     setRawInput('');
     setSelectedNeighborhood('');
+    setActiveAlert(null); // Clear any active alerts
   }, [dataType]);
 
   // --- Lấy danh mục các tỉnh thành từ Local Storage ---
@@ -102,6 +223,12 @@ function App() {
       }
       return next;
     });
+  };
+
+  // --- Kiểm tra và chuyển đổi Tab loại hình dịch vụ ---
+  const handleTabChange = (newType) => {
+    if (newType === dataType) return;
+    setDataType(newType);
   };
 
   // --- Xử lý nạp văn bản thô (khi dán hoặc kéo thả tệp) ---
@@ -144,6 +271,27 @@ function App() {
     } catch (err) {
       toast.error(`Lỗi xử lý cú pháp dữ liệu: ${err.message}`);
     }
+  };
+
+  // --- Hành động: Xóa các dòng trùng lặp khỏi bảng hiển thị ---
+  const handleRemoveDuplicates = () => {
+    const beforeCount = currentData.length;
+    const cleanData = currentData.filter(item => !item.isDuplicate);
+    
+    if (cleanData.length === beforeCount) {
+      toast.info('Bảng hiện tại không chứa dòng trùng lặp nào để xóa.');
+      return;
+    }
+
+    // Sắp xếp và đánh lại số thứ tự STT bắt từ 1
+    const reindexedData = cleanData.map((item, idx) => ({
+      ...item,
+      stt: idx + 1,
+      isDuplicate: false // Reset cờ trùng
+    }));
+
+    setCurrentData(reindexedData);
+    toast.success(`Đã loại bỏ thành công ${beforeCount - reindexedData.length} dòng trùng lặp!`);
   };
 
   // --- Hành động: Kiểm tra trùng lặp diện rộng (gọi đối chiếu Local Storage) ---
@@ -233,45 +381,16 @@ function App() {
 
       setCurrentData(updatedData);
 
-      const duplicateCount = updatedData.filter(item => item.isDuplicate).length;
-      if (duplicateCount > 0) {
-        const storageCount = updatedData.filter(item => item.duplicateSource === 'storage').length;
-        const fileCount = updatedData.filter(item => item.duplicateSource === 'file').length;
-        
-        let msg = `Phát hiện ${duplicateCount} bản ghi bị trùng lặp:`;
-        if (storageCount > 0) msg += `\n• ${storageCount} dòng trùng dữ liệu trong kho Local Storage.`;
-        if (fileCount > 0) msg += `\n• ${fileCount} dòng trùng nội bộ trong tệp vừa nạp.`;
-        
-        toast.warning(msg, { autoClose: 5000 });
-      } else {
-        toast.success('Kiểm tra hoàn tất: Không phát hiện trùng lặp dữ liệu!');
-      }
+      // Dữ liệu trùng lặp sẽ tự động được phản ánh và cập nhật thông báo Ant Design Alert thông qua useEffect
     } catch (err) {
-      toast.error(`Kiểm tra trùng lặp thất bại: ${err.message}`);
+      setActiveAlert({
+        type: 'error',
+        message: 'Lỗi kiểm tra trùng lặp',
+        description: err.message
+      });
     } finally {
       setIsChecking(false);
     }
-  };
-
-  // --- Hành động: Xóa các dòng trùng lặp khỏi bảng hiển thị ---
-  const handleRemoveDuplicates = () => {
-    const beforeCount = currentData.length;
-    const cleanData = currentData.filter(item => !item.isDuplicate);
-    
-    if (cleanData.length === beforeCount) {
-      toast.info('Bảng hiện tại không chứa dòng trùng lặp nào để xóa.');
-      return;
-    }
-
-    // Sắp xếp và đánh lại số thứ tự STT bắt từ 1
-    const reindexedData = cleanData.map((item, idx) => ({
-      ...item,
-      stt: idx + 1,
-      isDuplicate: false // Reset cờ trùng
-    }));
-
-    setCurrentData(reindexedData);
-    toast.success(`Đã loại bỏ thành công ${beforeCount - reindexedData.length} dòng trùng lặp!`);
   };
 
   // --- Hành động: Xem danh sách cũ lưu trữ trên Local Storage ---
@@ -330,6 +449,7 @@ function App() {
           
           setSelectedListId('');
           await loadSavedLists();
+          setLastSavedTime(Date.now());
         } catch (err) {
           toast.error(`Lỗi khi xóa: ${err.message}`);
         } finally {
@@ -358,6 +478,7 @@ function App() {
       await loadSavedLists();
       setSelectedListId(savedList.id);
       setActiveListId(savedList.id);
+      setLastSavedTime(Date.now());
     } catch (err) {
       toast.error(`Không thể lưu dữ liệu: ${err.message}`);
     } finally {
@@ -485,7 +606,7 @@ function App() {
         }}>
           <button
             type="button"
-            onClick={() => setDataType('hotels')}
+            onClick={() => handleTabChange('hotels')}
             style={{
               padding: '0.75rem 1.5rem',
               borderRadius: '12px',
@@ -505,7 +626,7 @@ function App() {
           </button>
           <button
             type="button"
-            onClick={() => setDataType('restaurants')}
+            onClick={() => handleTabChange('restaurants')}
             style={{
               padding: '0.75rem 1.5rem',
               borderRadius: '12px',
@@ -525,7 +646,7 @@ function App() {
           </button>
           <button
             type="button"
-            onClick={() => setDataType('spa')}
+            onClick={() => handleTabChange('spa')}
             style={{
               padding: '0.75rem 1.5rem',
               borderRadius: '12px',
@@ -572,8 +693,24 @@ function App() {
           onLoadList={handleLoadSavedList}
           onDeleteList={handleDeleteSavedList}
           onOpenSaveModal={() => setIsSaveModalOpen(true)}
-          hasData={currentData.length > 0}
+          hasUnsavedData={hasUnsavedData}
         />
+
+        {/* Khung hiển thị thông báo động bằng Ant Design Alert */}
+        {activeAlert && (
+          <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+            <Alert
+              title={activeAlert.message}
+              message={activeAlert.message}
+              description={activeAlert.description}
+              type={activeAlert.type}
+              showIcon
+              action={activeAlert.action}
+              closable
+              onClose={() => setActiveAlert(null)}
+            />
+          </div>
+        )}
       </main>
 
       {/* Vùng bộ lọc Phường/Xã nếu có dữ liệu */}

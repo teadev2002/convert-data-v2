@@ -56,10 +56,10 @@ export default function ControlBar({
 
       {/* Checkbox chọn trường lọc trùng */}
       {hasData && (
-        <div className="dup-fields-selector" style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '1.25rem', 
+        <div className="dup-fields-selector" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1.25rem',
           padding: '0.65rem 0.85rem',
           backgroundColor: 'var(--bg-card)',
           borderRadius: '6px',
@@ -68,39 +68,39 @@ export default function ControlBar({
           flexWrap: 'wrap'
         }}>
           <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>So khớp trùng theo:</span>
-          
+
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-            <input 
-              type="checkbox" 
-              checked={!!dupFields.url} 
-              onChange={() => onDupFieldsChange('url')} 
+            <input
+              type="checkbox"
+              checked={!!dupFields.url}
+              onChange={() => onDupFieldsChange('url')}
             />
-            URL
+            Bản đồ
           </label>
-          
+
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-            <input 
-              type="checkbox" 
-              checked={!!dupFields.address} 
-              onChange={() => onDupFieldsChange('address')} 
+            <input
+              type="checkbox"
+              checked={!!dupFields.address}
+              onChange={() => onDupFieldsChange('address')}
             />
             Địa chỉ
           </label>
-          
+
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-            <input 
-              type="checkbox" 
-              checked={!!dupFields.phone} 
-              onChange={() => onDupFieldsChange('phone')} 
+            <input
+              type="checkbox"
+              checked={!!dupFields.phone}
+              onChange={() => onDupFieldsChange('phone')}
             />
             Số điện thoại
           </label>
-          
+
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-            <input 
-              type="checkbox" 
-              checked={!!dupFields.title} 
-              onChange={() => onDupFieldsChange('title')} 
+            <input
+              type="checkbox"
+              checked={!!dupFields.title}
+              onChange={() => onDupFieldsChange('title')}
             />
             Tên cơ sở
           </label>

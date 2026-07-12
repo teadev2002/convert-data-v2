@@ -7,7 +7,7 @@ export default function StorageManager({
   onLoadList,
   onDeleteList,
   onOpenSaveModal,
-  hasData
+  hasUnsavedData
 }) {
   return (
     <div className="storage-manager">
@@ -47,7 +47,7 @@ export default function StorageManager({
         className="btn btn-danger"
         onClick={onDeleteList}
         disabled={!selectedListId}
-        title="Xóa hoàn toàn danh sách này khỏi cơ sở dữ liệu"
+        title="Xóa hoàn toàn danh sách này khỏi bộ nhớ trình duyệt"
       >
         🗑️ Xóa danh sách
       </button>
@@ -57,8 +57,8 @@ export default function StorageManager({
         type="button"
         className="btn btn-primary"
         onClick={onOpenSaveModal}
-        disabled={!hasData}
-        title="Lưu dữ liệu đang hiển thị trên bảng lên máy chủ"
+        disabled={!hasUnsavedData}
+        title={hasUnsavedData ? "Lưu danh sách hiện tại vào Local Storage" : "Không có dữ liệu mới để lưu (Tất cả bản ghi đã trùng với kho lưu trữ)"}
         style={{ marginLeft: 'auto' }}
       >
         💾 Lưu dữ liệu
