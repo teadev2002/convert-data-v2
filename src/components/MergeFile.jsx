@@ -15,8 +15,8 @@ export default function MergeFile({ isDark, setIsLoading }) {
     address: true
   });
 
-  const [conflicts, setConflicts] = useState([]); // Array of conflicts: { key, title, phone, address, email1, email2, record1, record2, resolution }
-  const [tempMergeData, setTempMergeData] = useState(null); // Temporary hold lists during conflict resolution
+  const [conflicts, setConflicts] = useState([]); // Array of conflicts: { key, indexInUniqueList, title, phone, address, email1, email2, record1, record2, resolution }
+  const [tempMergeData, setTempMergeData] = useState(null); // Temporary hold uniqueMergedList during conflict resolution
 
   const [mergeSummary, setMergeSummary] = useState(null); // { totalRecords, matchedCount, emailsFilled, conflictsResolved }
   const [mergedResults, setMergedResults] = useState([]); // Final merged data
@@ -157,7 +157,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
     return hasCheckedField;
   };
 
-  // Khởi động quá trình hợp nhất & phát hiện xung đột
+  // Khởi động quá trình hợp nhất với cơ chế chống trùng lặp tuyệt đối
   const handleStartMerge = () => {
     if (!file1 || !file2) {
       toast.warn('Vui lòng nạp đủ cả 2 tệp dữ liệu để tiến hành hợp nhất!');
@@ -176,73 +176,75 @@ export default function MergeFile({ isDark, setIsLoading }) {
         const list1 = file1.data.map(item => ({ ...item, source: 'file1', isUpdated: false }));
         const list2 = file2.data.map(item => ({ ...item, source: 'file2', isUpdated: false }));
 
+        // Gộp toàn bộ dữ liệu của 2 file lại để chạy giải thuật duy nhất hóa
+        const combined = [...list1, ...list2];
+        const uniqueMergedList = [];
         const detectedConflicts = [];
-        const matchedList2Stts = new Set();
-        const nonConflictingMerges = [];
 
-        list1.forEach(item => {
-          let matchedItem = null;
-          for (const item2 of list2) {
-            if (isMatch(item, item2)) {
-              matchedItem = item2;
-              matchedList2Stts.add(item2.stt);
+        combined.forEach(item => {
+          // Tìm xem trong uniqueMergedList có bản ghi nào trùng khớp với bản ghi hiện tại không
+          let matchIndex = -1;
+          for (let i = 0; i < uniqueMergedList.length; i++) {
+            if (isMatch(item, uniqueMergedList[i])) {
+              matchIndex = i;
               break;
             }
           }
 
-          if (matchedItem) {
-            const hasEmail1 = !!cleanString(item.email);
-            const hasEmail2 = !!cleanString(matchedItem.email);
+          if (matchIndex >= 0) {
+            const existing = uniqueMergedList[matchIndex];
+            const hasEmailExisting = !!cleanString(existing.email);
+            const hasEmailItem = !!cleanString(item.email);
 
-            // Kiểm tra xung đột: Cả 2 đều có email và email KHÁC nhau
-            if (hasEmail1 && hasEmail2 && cleanString(item.email) !== cleanString(matchedItem.email)) {
+            if (hasEmailExisting && hasEmailItem && cleanString(existing.email) !== cleanString(item.email)) {
+              // Xung đột email: Cả 2 đều có email nhưng email khác nhau
               detectedConflicts.push({
-                key: `${item.stt}_${matchedItem.stt}`,
-                title: item.title || matchedItem.title,
-                phone: item.phone || matchedItem.phone,
-                address: item.address || matchedItem.address,
-                email1: item.email,
-                email2: matchedItem.email,
-                record1: item,
-                record2: matchedItem,
-                resolution: 'file1' // Mặc định chọn Tệp 1
+                key: `${existing.stt || matchIndex}_${item.stt || Math.random()}`,
+                indexInUniqueList: matchIndex,
+                title: existing.title || item.title,
+                phone: existing.phone || item.phone,
+                address: existing.address || item.address,
+                email1: existing.email,
+                email2: item.email,
+                record1: { ...existing },
+                record2: { ...item },
+                resolution: 'file1'
               });
             } else {
-              // Đối khớp không xung đột (1 bên có, 1 bên không, hoặc cả 2 không có, hoặc giống hệt nhau)
-              const mergedRecord = { ...item };
-              
-              if (!hasEmail1 && hasEmail2) {
-                mergedRecord.email = matchedItem.email;
-                mergedRecord.isUpdated = true;
+              // Không xung đột email -> Điền email thiếu chéo
+              if (!hasEmailExisting && hasEmailItem) {
+                existing.email = item.email;
+                existing.isUpdated = true;
               }
+            }
 
-              // Gộp các trường trống khác
-              if (!mergedRecord.website && matchedItem.website) mergedRecord.website = matchedItem.website;
-              if (!mergedRecord.cuisineType && matchedItem.cuisineType) mergedRecord.cuisineType = matchedItem.cuisineType;
-              if (!mergedRecord.neighborhood && matchedItem.neighborhood) mergedRecord.neighborhood = matchedItem.neighborhood;
-              if (!mergedRecord.totalScore && matchedItem.totalScore) mergedRecord.totalScore = matchedItem.totalScore;
+            // Gộp chéo các trường dữ liệu bị thiếu khác
+            if (!existing.website && item.website) existing.website = item.website;
+            if (!existing.phone && item.phone) existing.phone = item.phone;
+            if (!existing.address && item.address) existing.address = item.address;
+            if (!existing.cuisineType && item.cuisineType) existing.cuisineType = item.cuisineType;
+            if (!existing.neighborhood && item.neighborhood) existing.neighborhood = item.neighborhood;
+            if (!existing.totalScore && item.totalScore) existing.totalScore = item.totalScore;
 
-              nonConflictingMerges.push(mergedRecord);
+            if (existing.source !== item.source) {
+              existing.source = 'both';
             }
           } else {
-            // Không khớp
-            nonConflictingMerges.push(item);
+            // Bản ghi độc nhất mới tinh -> thêm vào uniqueMergedList
+            uniqueMergedList.push({ ...item });
           }
         });
 
-        // Giữ thông tin tệp nháp để xử lý xung đột
         setTempMergeData({
-          list2,
-          matchedList2Stts,
-          nonConflictingMerges
+          uniqueMergedList
         });
 
         if (detectedConflicts.length > 0) {
           setConflicts(detectedConflicts);
           toast.warning(`Phát hiện ${detectedConflicts.length} bản ghi có xung đột email. Vui lòng duyệt qua các lựa chọn.`);
         } else {
-          // Không có xung đột -> Hợp nhất trực tiếp
-          finalizeMerge(nonConflictingMerges, list2, matchedList2Stts, []);
+          // Không có xung đột -> Finalize hợp nhất luôn
+          finalizeMerge(uniqueMergedList, []);
         }
       } catch (err) {
         toast.error(`Lỗi đối hợp dữ liệu: ${err.message}`);
@@ -259,36 +261,28 @@ export default function MergeFile({ isDark, setIsLoading }) {
     setIsLoading(true);
     setTimeout(() => {
       try {
-        const { list2, matchedList2Stts, nonConflictingMerges } = tempMergeData;
-        const resolvedList = [...nonConflictingMerges];
-        let emailsFilledCount = 0;
+        const { uniqueMergedList } = tempMergeData;
+        const resolvedList = uniqueMergedList.map(item => ({ ...item }));
 
         conflicts.forEach(conflict => {
-          const rec1 = { ...conflict.record1 };
-          const rec2 = conflict.record2;
+          const idx = conflict.indexInUniqueList;
+          if (idx >= 0 && idx < resolvedList.length) {
+            const existing = resolvedList[idx];
 
-          // Thực thi tùy chọn phân giải của người dùng
-          if (conflict.resolution === 'file1') {
-            rec1.email = conflict.email1;
-          } else if (conflict.resolution === 'file2') {
-            rec1.email = conflict.email2;
-            rec1.isUpdated = true;
-          } else if (conflict.resolution === 'both') {
-            rec1.email = `${conflict.email1}, ${conflict.email2}`;
-            rec1.isUpdated = true;
+            if (conflict.resolution === 'file1') {
+              existing.email = conflict.email1;
+            } else if (conflict.resolution === 'file2') {
+              existing.email = conflict.email2;
+              existing.isUpdated = true;
+            } else if (conflict.resolution === 'both') {
+              existing.email = `${conflict.email1}, ${conflict.email2}`;
+              existing.isUpdated = true;
+            }
+            existing.source = 'both';
           }
-
-          // Gộp các trường trống khác
-          if (!rec1.website && rec2.website) rec1.website = rec2.website;
-          if (!rec1.cuisineType && rec2.cuisineType) rec1.cuisineType = rec2.cuisineType;
-          if (!rec1.neighborhood && rec2.neighborhood) rec1.neighborhood = rec2.neighborhood;
-          if (!rec1.totalScore && rec2.totalScore) rec1.totalScore = rec2.totalScore;
-
-          resolvedList.push(rec1);
-          emailsFilledCount++;
         });
 
-        finalizeMerge(resolvedList, list2, matchedList2Stts, conflicts);
+        finalizeMerge(resolvedList, conflicts);
       } catch (err) {
         toast.error(`Lỗi hợp nhất xung đột: ${err.message}`);
       } finally {
@@ -297,14 +291,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
     }, 200);
   };
 
-  const finalizeMerge = (mergedList, list2, matchedList2Stts, resolvedConflicts) => {
-    // Add các bản ghi của list2 không có đối khớp
-    list2.forEach(item => {
-      if (!matchedList2Stts.has(item.stt)) {
-        mergedList.push(item);
-      }
-    });
-
+  const finalizeMerge = (mergedList, resolvedConflicts) => {
     // Sắp xếp đưa các bản ghi có email lên hàng đầu
     mergedList.sort((a, b) => {
       const hasEmailA = !!String(a.email || '').trim();
@@ -314,7 +301,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
       return 0;
     });
 
-    // Đánh lại số thứ tự STT
+    // Đánh lại số thứ tự STT bắt đầu từ 1
     const finalResults = mergedList.map((item, idx) => ({
       ...item,
       stt: idx + 1
@@ -323,12 +310,12 @@ export default function MergeFile({ isDark, setIsLoading }) {
     setMergedResults(finalResults);
     setMergeSummary({
       totalRecords: finalResults.length,
-      matchedCount: file1.data.length + file2.data.length - finalResults.length,
+      matchedCount: (file1.data.length + file2.data.length) - finalResults.length,
       emailsFilled: finalResults.filter(item => item.isUpdated).length,
       conflictsResolved: resolvedConflicts.length
     });
     setConflicts([]);
-    toast.success('Hợp nhất & điền email hoàn tất!');
+    toast.success('Hợp nhất & điền email hoàn tất! Tuyệt đối không còn bản ghi trùng lặp.');
   };
 
   const updateConflictResolution = (key, value) => {
@@ -683,7 +670,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
             type="success"
             showIcon
             message="Hợp nhất thành công!"
-            description={`Tổng số: ${mergeSummary.totalRecords} bản ghi sau gộp. Đối sánh thành công ${mergeSummary.matchedCount} cặp bản ghi. Đã gộp và điền ${mergeSummary.emailsFilled} email còn thiếu (bao gồm ${mergeSummary.conflictsResolved} xung đột đã giải quyết).`}
+            description={`Tổng số: ${mergeSummary.totalRecords} bản ghi sau gộp. Đối sánh thành công ${mergeSummary.matchedCount} bản ghi trùng. Đã gộp và điền ${mergeSummary.emailsFilled} email còn thiếu (bao gồm ${mergeSummary.conflictsResolved} xung đột đã giải quyết).`}
             action={
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <Button size="small" type="primary" onClick={handleExportExcel}>
@@ -763,7 +750,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
                           backgroundColor: 'var(--border-color)',
                           color: 'var(--text-muted)'
                         }}>
-                          {item.source === 'file1' ? 'Tệp 1' : 'Tệp 2'}
+                          {item.source === 'file1' ? 'Tệp 1' : item.source === 'file2' ? 'Tệp 2' : 'Cả hai'}
                         </span>
                       </td>
                     </tr>
