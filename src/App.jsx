@@ -11,6 +11,7 @@ import StorageManager from './components/StorageManager.jsx';
 import ResultSection from './components/ResultSection.jsx';
 import SaveModal from './components/SaveModal.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
+import MergeFile from './components/MergeFile.jsx';
 
 // Import các dịch vụ API & tiện ích
 import { listService } from './services/listService.js';
@@ -22,6 +23,22 @@ import { exportToExcel } from './utils/excelExporter.js';
 import './App.css';
 
 function App() {
+  // --- Cơ chế định tuyến nhẹ (Routing) ---
+  const [currentRoute, setCurrentRoute] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (path) => {
+    window.history.pushState(null, '', path);
+    setCurrentRoute(path);
+  };
+
   // --- States toàn cục quản lý luồng dữ liệu ---
   const [dataType, setDataType] = useState('hotels'); // 'hotels', 'restaurants' hoặc 'spa'
   const [rawInput, setRawInput] = useState(''); // Lưu nội dung nhập liệu hoặc kéo thả thô
@@ -591,189 +608,200 @@ function App() {
   return (
     <div className="app-container">
       {/* 1. Header Trang */}
-      <Header isDark={isDarkTheme} onToggleTheme={handleToggleTheme} />
+      <Header 
+        isDark={isDarkTheme} 
+        onToggleTheme={handleToggleTheme} 
+        currentRoute={currentRoute}
+        onNavigate={navigate}
+      />
 
-      {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}
-      <main className="main-card glass-card">
-        {/* NÚT TAB CHUYỂN ĐỔI SONG SONG GIỮA KHÁCH SẠN, NHÀ HÀNG VÀ SPA */}
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-          borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '1rem',
-          flexWrap: 'wrap'
-        }}>
-          <button
-            type="button"
-            onClick={() => handleTabChange('hotels')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: dataType === 'hotels' ? 'var(--primary)' : 'var(--bg-card)',
-              color: dataType === 'hotels' ? '#fff' : 'var(--text-main)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: dataType === 'hotels' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
+      {currentRoute === '/merge-file' ? (
+        <MergeFile isDark={isDarkTheme} setIsLoading={setIsLoading} />
+      ) : (
+        <>
+          {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}
+          <main className="main-card glass-card">
+            {/* NÚT TAB CHUYỂN ĐỔI SONG SONG GIỮA KHÁCH SẠN, NHÀ HÀNG VÀ SPA */}
+            <div style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            🏨 Khách sạn (Hotels)
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabChange('restaurants')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: dataType === 'restaurants' ? 'var(--primary)' : 'var(--bg-card)',
-              color: dataType === 'restaurants' ? '#fff' : 'var(--text-main)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: dataType === 'restaurants' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            🍽️ Nhà hàng (Restaurants)
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabChange('spa')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: dataType === 'spa' ? 'var(--primary)' : 'var(--bg-card)',
-              color: dataType === 'spa' ? '#fff' : 'var(--text-main)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: dataType === 'spa' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            💆 Spa & Massage (Spa)
-          </button>
-        </div>
+              gap: '1rem',
+              marginBottom: '1.5rem',
+              borderBottom: '1px solid var(--border-color)',
+              paddingBottom: '1rem',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                type="button"
+                onClick={() => handleTabChange('hotels')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: dataType === 'hotels' ? 'var(--primary)' : 'var(--bg-card)',
+                  color: dataType === 'hotels' ? '#fff' : 'var(--text-main)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: dataType === 'hotels' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                🏨 Khách sạn (Hotels)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('restaurants')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: dataType === 'restaurants' ? 'var(--primary)' : 'var(--bg-card)',
+                  color: dataType === 'restaurants' ? '#fff' : 'var(--text-main)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: dataType === 'restaurants' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                🍽️ Nhà hàng (Restaurants)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('spa')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: dataType === 'spa' ? 'var(--primary)' : 'var(--bg-card)',
+                  color: dataType === 'spa' ? '#fff' : 'var(--text-main)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: dataType === 'spa' ? '0 4px 15px rgba(0, 115, 230, 0.3)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                💆 Spa & Massage (Spa)
+              </button>
+            </div>
 
-        {/* Vùng kéo thả dữ liệu JSON/CSV */}
-        <DragDropInput 
-          value={rawInput}
-          onChange={setRawInput}
-          onRawInputLoad={handleRawInputLoad}
-        />
-
-        {/* Thanh tác vụ: Xử lý, Kiểm tra trùng, Lọc trùng */}
-        <ControlBar
-          onProcess={handleProcessData}
-          onCheckDuplicates={handleCheckDuplicates}
-          onRemoveDuplicates={handleRemoveDuplicates}
-          hasRawInput={!!rawInput.trim()}
-          hasData={currentData.length > 0}
-          isChecking={isChecking}
-          dupFields={dupFields}
-          onDupFieldsChange={handleDupFieldsChange}
-        />
-
-        {/* Trình quản lý lưu trữ tỉnh thành: Xem, Xóa, Lưu */}
-        <StorageManager
-          lists={lists}
-          selectedListId={selectedListId}
-          onSelectChange={setSelectedListId}
-          onLoadList={handleLoadSavedList}
-          onDeleteList={handleDeleteSavedList}
-          onOpenSaveModal={() => setIsSaveModalOpen(true)}
-          hasUnsavedData={hasUnsavedData}
-        />
-
-        {/* Khung hiển thị thông báo động bằng Ant Design Alert */}
-        {activeAlert && (
-          <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-            <Alert
-              title={activeAlert.message}
-              message={activeAlert.message}
-              description={activeAlert.description}
-              type={activeAlert.type}
-              showIcon
-              action={activeAlert.action}
-              closable
-              onClose={() => setActiveAlert(null)}
+            {/* Vùng kéo thả dữ liệu JSON/CSV */}
+            <DragDropInput 
+              value={rawInput}
+              onChange={setRawInput}
+              onRawInputLoad={handleRawInputLoad}
             />
-          </div>
-        )}
-      </main>
 
-      {/* Vùng bộ lọc Phường/Xã nếu có dữ liệu */}
-      {currentData.length > 0 && (
-        <div className="filter-bar glass-card" style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '1rem', 
-          margin: '0rem 1.5rem 1.5rem 1.5rem',
-          padding: '0.75rem 1.25rem',
-          borderRadius: '12px',
-          border: '1px solid var(--border-color)',
-          backgroundColor: 'var(--bg-card)',
-          flexWrap: 'wrap'
-        }}>
-          <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            📍 Bộ lọc Phường / Xã:
-          </label>
-          <select
-            className="form-select"
-            value={selectedNeighborhood}
-            onChange={(e) => setSelectedNeighborhood(e.target.value)}
-            style={{ maxWidth: '250px', margin: 0, padding: '0.375rem 1.75rem 0.375rem 0.75rem' }}
-          >
-            <option value="">-- Tất cả Phường / Xã --</option>
-            {getNeighborhoodOptions().map(n => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            Đang hiển thị: <strong>{displayedData.length}</strong> trên tổng số <strong>{currentData.length}</strong> bản ghi
-          </span>
-        </div>
+            {/* Thanh tác vụ: Xử lý, Kiểm tra trùng, Lọc trùng */}
+            <ControlBar
+              onProcess={handleProcessData}
+              onCheckDuplicates={handleCheckDuplicates}
+              onRemoveDuplicates={handleRemoveDuplicates}
+              hasRawInput={!!rawInput.trim()}
+              hasData={currentData.length > 0}
+              isChecking={isChecking}
+              dupFields={dupFields}
+              onDupFieldsChange={handleDupFieldsChange}
+            />
+
+            {/* Trình quản lý lưu trữ tỉnh thành: Xem, Xóa, Lưu */}
+            <StorageManager
+              lists={lists}
+              selectedListId={selectedListId}
+              onSelectChange={setSelectedListId}
+              onLoadList={handleLoadSavedList}
+              onDeleteList={handleDeleteSavedList}
+              onOpenSaveModal={() => setIsSaveModalOpen(true)}
+              hasUnsavedData={hasUnsavedData}
+            />
+
+            {/* Khung hiển thị thông báo động bằng Ant Design Alert */}
+            {activeAlert && (
+              <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                <Alert
+                  title={activeAlert.message}
+                  message={activeAlert.message}
+                  description={activeAlert.description}
+                  type={activeAlert.type}
+                  showIcon
+                  action={activeAlert.action}
+                  closable
+                  onClose={() => setActiveAlert(null)}
+                />
+              </div>
+            )}
+          </main>
+
+          {/* Vùng bộ lọc Phường/Xã nếu có dữ liệu */}
+          {currentData.length > 0 && (
+            <div className="filter-bar glass-card" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '1rem', 
+              margin: '0rem 1.5rem 1.5rem 1.5rem',
+              padding: '0.75rem 1.25rem',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-card)',
+              flexWrap: 'wrap'
+            }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                📍 Bộ lọc Phường / Xã:
+              </label>
+              <select
+                className="form-select"
+                value={selectedNeighborhood}
+                onChange={(e) => setSelectedNeighborhood(e.target.value)}
+                style={{ maxWidth: '250px', margin: 0, padding: '0.375rem 1.75rem 0.375rem 0.75rem' }}
+              >
+                <option value="">-- Tất cả Phường / Xã --</option>
+                {getNeighborhoodOptions().map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                Đang hiển thị: <strong>{displayedData.length}</strong> trên tổng số <strong>{currentData.length}</strong> bản ghi
+              </span>
+            </div>
+          )}
+
+          {/* 3. Result Section - Trực Quan Hóa Bảng/JSON Kết Quả */}
+          <ResultSection
+            data={displayedData}
+            dataType={dataType}
+            onDeleteRow={handleDeleteRow}
+            onSortByScore={handleSortByScore}
+            onExportExcel={handleExportExcel}
+          />
+
+          {/* --- CÁC POPUP MODALS TÙY BIẾN --- */}
+
+          {/* Modal Lưu danh sách tỉnh thành */}
+          <SaveModal
+            isOpen={isSaveModalOpen}
+            lists={lists}
+            dataType={dataType}
+            onSave={handleSaveData}
+            onCancel={() => setIsSaveModalOpen(false)}
+          />
+
+          {/* Modal Xác nhận */}
+          <ConfirmModal
+            isOpen={confirmConfig.isOpen}
+            title={confirmConfig.title}
+            message={confirmConfig.message}
+            onConfirm={confirmConfig.onConfirm}
+            onCancel={confirmConfig.onCancel}
+          />
+        </>
       )}
-
-      {/* 3. Result Section - Trực Quan Hóa Bảng/JSON Kết Quả */}
-      <ResultSection
-        data={displayedData}
-        dataType={dataType}
-        onDeleteRow={handleDeleteRow}
-        onSortByScore={handleSortByScore}
-        onExportExcel={handleExportExcel}
-      />
-
-      {/* --- CÁC POPUP MODALS TÙY BIẾN --- */}
-
-      {/* Modal Lưu danh sách tỉnh thành */}
-      <SaveModal
-        isOpen={isSaveModalOpen}
-        lists={lists}
-        dataType={dataType}
-        onSave={handleSaveData}
-        onCancel={() => setIsSaveModalOpen(false)}
-      />
-
-      {/* Modal Xác nhận */}
-      <ConfirmModal
-        isOpen={confirmConfig.isOpen}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        onConfirm={confirmConfig.onConfirm}
-        onCancel={confirmConfig.onCancel}
-      />
 
       {/* Vòng quay Loading toàn màn hình khi đồng bộ */}
       {isLoading && (
