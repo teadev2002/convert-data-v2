@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Alert, Button } from 'antd';
+import { Alert, Button, Popconfirm } from 'antd';
 
 // Import các components
 import Header from './components/Header.jsx';
@@ -46,10 +46,11 @@ function App() {
   const [currentData, setCurrentData] = useState([]); // Dữ liệu đang trực quan hóa (sau khi sắp xếp, lọc...)
   const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Local Storage (provinces)
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(''); // Bộ lọc Phường / Xã đang chọn
-  
+  const [addressFilterText, setAddressFilterText] = useState(''); // Chuỗi tìm kiếm địa chỉ đang chọn
+
   const [selectedListId, setSelectedListId] = useState(''); // ID tỉnh thành đang chọn ở dropdown
   const [activeListId, setActiveListId] = useState(''); // ID tỉnh thành cũ đang hiển thị trên bảng
-  
+
   const [isLoading, setIsLoading] = useState(false); // Trạng thái tải dữ liệu chung
   const [isChecking, setIsChecking] = useState(false); // Trạng thái gọi API check trùng lặp
   const [dupFields, setDupFields] = useState({
@@ -67,7 +68,7 @@ function App() {
   // --- Tự động kiểm tra xem bảng hiển thị có chứa bản ghi chưa được lưu hay không ---
   const hasUnsavedData = useMemo(() => {
     if (currentData.length === 0) return false;
-    
+
     // Tải tất cả bản ghi đã lưu từ Local Storage để đối chiếu
     let allDbRecords = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -188,8 +189,8 @@ function App() {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {},
-    onCancel: () => {}
+    onConfirm: () => { },
+    onCancel: () => { }
   });
 
   // --- Khởi tạo theme khi mở trang ---
@@ -205,7 +206,7 @@ function App() {
   // --- Tự động tải lại danh sách tỉnh thành mỗi khi đổi Tab Hotels / Restaurants / Spa ---
   useEffect(() => {
     loadSavedLists();
-    
+
     // Reset toàn bộ trạng thái dữ liệu cũ
     setSelectedListId('');
     setActiveListId('');
@@ -213,6 +214,7 @@ function App() {
     setOriginalData([]);
     setRawInput('');
     setSelectedNeighborhood('');
+    setAddressFilterText('');
     setActiveAlert(null); // Clear any active alerts
   }, [dataType]);
 
@@ -294,7 +296,7 @@ function App() {
   const handleRemoveDuplicates = () => {
     const beforeCount = currentData.length;
     const cleanData = currentData.filter(item => !item.isDuplicate);
-    
+
     if (cleanData.length === beforeCount) {
       toast.info('Bảng hiện tại không chứa dòng trùng lặp nào để xóa.');
       return;
@@ -314,7 +316,7 @@ function App() {
   // --- Hành động: Kiểm tra trùng lặp diện rộng (gọi đối chiếu Local Storage) ---
   const handleCheckDuplicates = async () => {
     if (currentData.length === 0) return;
-    
+
     // Kiểm tra xem có ít nhất 1 checkbox được tick hay không
     const anyChecked = Object.values(dupFields).some(v => v);
     if (!anyChecked) {
@@ -326,7 +328,7 @@ function App() {
     try {
       // Gọi đối chiếu với dữ liệu Local Storage
       const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType, dupFields);
-      
+
       const apiDupSet = new Set(duplicateStts);
       const localSeen = []; // Lưu các bản ghi đã duyệt qua để kiểm tra trùng chéo nội bộ
 
@@ -422,7 +424,7 @@ function App() {
         setOriginalData(dbData);
         setCurrentData(dbData);
         setActiveListId(list.id);
-        
+
         // Dán chuỗi JSON của danh sách vào textarea để người dùng xem/chỉnh sửa
         setRawInput(JSON.stringify(dbData, null, 2));
         toast.success(`Đã tải dữ liệu tỉnh "${list.name}" (${dbData.length} bản ghi) từ Local Storage.`);
@@ -455,7 +457,7 @@ function App() {
         try {
           await listService.delete(selectedListId, dataType);
           toast.success(`Đã xóa sạch dữ liệu ${displayType} của tỉnh "${listToDelete.name}" khỏi Local Storage.`);
-          
+
           if (activeListId === selectedListId) {
             setActiveListId('');
             setCurrentData([]);
@@ -463,7 +465,7 @@ function App() {
             setRawInput('');
             setSelectedNeighborhood('');
           }
-          
+
           setSelectedListId('');
           await loadSavedLists();
           setLastSavedTime(Date.now());
@@ -490,7 +492,7 @@ function App() {
       const displayType = dataType === 'hotels' ? 'khách sạn' : dataType === 'restaurants' ? 'nhà hàng' : 'spa';
       toast.success(`Đã lưu trữ thành công dữ liệu ${displayType} vào tỉnh "${provinceName}" trên Local Storage.`);
       setIsSaveModalOpen(false);
-      
+
       // Cập nhật lại dropdown danh sách
       await loadSavedLists();
       setSelectedListId(savedList.id);
@@ -510,21 +512,94 @@ function App() {
 
     // Lọc bỏ đối tượng này khỏi currentData
     const updatedData = currentData.filter(item => item !== targetItem);
-    
+
     // Đánh lại số thứ tự sau khi xóa
     const reindexedData = updatedData.map((item, idx) => ({
       ...item,
       stt: idx + 1
     }));
-    
+
     setCurrentData(reindexedData);
     toast.success('Đã xóa dòng dữ liệu khỏi màn hình.');
+  };
+
+  // --- Hành động: Loại bỏ đồng loạt các bản ghi không khớp bộ lọc địa chỉ ---
+  const handleDiscardNonMatchingRows = () => {
+    if (!addressFilterText.trim()) return;
+    const query = addressFilterText.trim().toLowerCase();
+
+    const kept = currentData.filter(item => item.address && item.address.toLowerCase().includes(query));
+    const discardedCount = currentData.length - kept.length;
+
+    if (discardedCount === 0) {
+      toast.info('Không có dòng nào không khớp địa chỉ để loại bỏ.');
+      return;
+    }
+
+    const reindexed = kept.map((item, idx) => ({
+      ...item,
+      stt: idx + 1
+    }));
+
+    setCurrentData(reindexed);
+    setAddressFilterText('');
+    toast.success(`Đã loại bỏ đồng loạt ${discardedCount} dòng không khớp địa chỉ khỏi bảng.`);
+  };
+
+  // --- Hành động: Lưu các bản ghi không khớp địa chỉ vào kho Temp riêng trên Local Storage ---
+  const handleSaveNonMatchingRowsToTemp = async () => {
+    if (!addressFilterText.trim()) return;
+    const query = addressFilterText.trim().toLowerCase();
+
+    const nonMatching = currentData.filter(item => !item.address || !item.address.toLowerCase().includes(query));
+    if (nonMatching.length === 0) {
+      toast.info('Mọi bản ghi đều khớp địa chỉ, không có bản ghi nào để lưu vào kho Temp.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      let baseProvinceName = 'Chưa lưu';
+
+      if (activeListId) {
+        const activeList = lists.find(l => l.id === activeListId);
+        if (activeList) {
+          baseProvinceName = activeList.name;
+        }
+      } else if (selectedListId) {
+        const selectedList = lists.find(l => l.id === selectedListId);
+        if (selectedList) {
+          baseProvinceName = selectedList.name;
+        }
+      }
+
+      const cleanBase = baseProvinceName.replace(/\s*-\s*Temp$/, '');
+      const tempProvinceName = `${cleanBase} - Temp`;
+
+      const savedList = await listService.save(
+        tempProvinceName,
+        nonMatching,
+        '',
+        dataType,
+        null,
+        dupFields
+      );
+
+      toast.success(`Đã lưu ${nonMatching.length} bản ghi không khớp địa chỉ vào danh sách "${tempProvinceName}" trên Local Storage.`);
+
+      await loadSavedLists();
+      setLastSavedTime(Date.now());
+    } catch (err) {
+      toast.error(`Lỗi khi lưu vào kho Temp: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // --- Sắp xếp ưu tiên: Nhiều thông tin hơn (Email -> Website -> Phone -> Score) ---
   const handleSortByScore = () => {
     if (currentData.length === 0) return;
-    
+
     const sorted = [...currentData].sort((a, b) => {
       // 1. Ưu tiên có Email lên hàng đầu
       const hasEmailA = a.email && a.email.trim() !== '' ? 1 : 0;
@@ -568,19 +643,19 @@ function App() {
     }));
 
     setCurrentData(reindexedData);
-    toast.success('Đã sắp xếp danh sách ưu tiên (Website -> Số điện thoại -> Điểm số)!');
+    toast.success('Đã sắp xếp danh sách ưu tiên (Email -> Website -> Số điện thoại -> Điểm số)!');
   };
 
   // --- Xuất tệp Excel chứa dữ liệu hiện tại ---
   const handleExportExcel = () => {
     if (displayedData.length === 0) return;
-    
-    const cleanFileName = dataType === 'hotels' 
-      ? 'hotels_export.xlsx' 
-      : dataType === 'restaurants' 
-      ? 'restaurants_export.xlsx' 
-      : 'spa_export.xlsx';
-      
+
+    const cleanFileName = dataType === 'hotels'
+      ? 'hotels_export.xlsx'
+      : dataType === 'restaurants'
+        ? 'restaurants_export.xlsx'
+        : 'spa_export.xlsx';
+
     try {
       exportToExcel(displayedData, cleanFileName, dataType);
       toast.success('Tải xuống file Excel thành công!');
@@ -600,17 +675,30 @@ function App() {
     return Array.from(neighborhoods).sort((a, b) => a.localeCompare(b));
   };
 
-  // Dữ liệu được hiển thị sau khi qua bộ lọc Phường/Xã
-  const displayedData = selectedNeighborhood
-    ? currentData.filter(item => item.neighborhood && item.neighborhood.trim() === selectedNeighborhood)
-    : currentData;
+  // Dữ liệu được hiển thị sau khi qua bộ lọc Phường/Xã và lọc Địa chỉ
+  const displayedData = useMemo(() => {
+    let data = currentData;
+
+    // 1. Lọc theo Phường / Xã
+    if (selectedNeighborhood) {
+      data = data.filter(item => item.neighborhood && item.neighborhood.trim() === selectedNeighborhood);
+    }
+
+    // 2. Lọc theo Địa chỉ (không phân biệt hoa thường)
+    if (addressFilterText.trim()) {
+      const query = addressFilterText.trim().toLowerCase();
+      data = data.filter(item => item.address && item.address.toLowerCase().includes(query));
+    }
+
+    return data;
+  }, [currentData, selectedNeighborhood, addressFilterText]);
 
   return (
     <div className="app-container">
       {/* 1. Header Trang */}
-      <Header 
-        isDark={isDarkTheme} 
-        onToggleTheme={handleToggleTheme} 
+      <Header
+        isDark={isDarkTheme}
+        onToggleTheme={handleToggleTheme}
         currentRoute={currentRoute}
         onNavigate={navigate}
       />
@@ -693,7 +781,7 @@ function App() {
             </div>
 
             {/* Vùng kéo thả dữ liệu JSON/CSV */}
-            <DragDropInput 
+            <DragDropInput
               value={rawInput}
               onChange={setRawInput}
               onRawInputLoad={handleRawInputLoad}
@@ -741,10 +829,10 @@ function App() {
 
           {/* Vùng bộ lọc Phường/Xã nếu có dữ liệu */}
           {currentData.length > 0 && (
-            <div className="filter-bar glass-card" style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '1rem', 
+            <div className="filter-bar glass-card" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1.25rem',
               margin: '0rem 1.5rem 1.5rem 1.5rem',
               padding: '0.75rem 1.25rem',
               borderRadius: '12px',
@@ -752,21 +840,85 @@ function App() {
               backgroundColor: 'var(--bg-card)',
               flexWrap: 'wrap'
             }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                📍 Bộ lọc Phường / Xã:
-              </label>
-              <select
-                className="form-select"
-                value={selectedNeighborhood}
-                onChange={(e) => setSelectedNeighborhood(e.target.value)}
-                style={{ maxWidth: '250px', margin: 0, padding: '0.375rem 1.75rem 0.375rem 0.75rem' }}
-              >
-                <option value="">-- Tất cả Phường / Xã --</option>
-                {getNeighborhoodOptions().map(n => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              {/* Dropdown lọc Phường / Xã */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '220px' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+                  📍 Phường / Xã:
+                </label>
+                <select
+                  className="form-select"
+                  value={selectedNeighborhood}
+                  onChange={(e) => setSelectedNeighborhood(e.target.value)}
+                  style={{ minWidth: '160px', margin: 0, padding: '0.375rem 1.75rem 0.375rem 0.75rem' }}
+                >
+                  <option value="">-- Tất cả Phường / Xã --</option>
+                  {getNeighborhoodOptions().map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Ô nhập lọc theo địa chỉ */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1, minWidth: '280px' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                  🔍 Lọc địa chỉ:
+                </label>
+                <input
+                  type="text"
+                  value={addressFilterText}
+                  onChange={(e) => setAddressFilterText(e.target.value)}
+                  placeholder="Nhập từ khóa (ví dụ: Hồ Chí Minh)..."
+                  style={{
+                    flexGrow: 1,
+                    padding: '0.375rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.875rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Các nút hành động nâng cao dựa trên lọc địa chỉ */}
+              {addressFilterText.trim() && (
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <Popconfirm
+                    title="Xác nhận loại bỏ?"
+                    description="Hành động này sẽ loại bỏ vĩnh viễn toàn bộ các bản ghi không khớp khỏi bảng hiển thị hiện tại trên màn hình."
+                    onConfirm={handleDiscardNonMatchingRows}
+                    okText="Đồng ý xóa"
+                    cancelText="Hủy"
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.25rem', border: 'none', cursor: 'pointer' }}
+                    >
+                      🗑️ Xóa không khớp
+                    </button>
+                  </Popconfirm>
+                  <Popconfirm
+                    title="Lưu bản ghi không khớp vào kho Temp?"
+                    description="Hành động này sẽ tách các dòng không khớp địa chỉ ra và lưu thành một danh sách tạm thời riêng biệt (Temp) trong Local Storage để tránh mất dữ liệu."
+                    onConfirm={handleSaveNonMatchingRowsToTemp}
+                    okText="Đồng ý lưu"
+                    cancelText="Hủy"
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.25rem', border: 'none', cursor: 'pointer' }}
+                    >
+                      💾 Lưu vào Temp ( kho tạm)
+                    </button>
+                  </Popconfirm>
+                </div>
+              )}
+
+              {/* Thông tin đếm số dòng hiển thị */}
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                 Đang hiển thị: <strong>{displayedData.length}</strong> trên tổng số <strong>{currentData.length}</strong> bản ghi
               </span>
             </div>
