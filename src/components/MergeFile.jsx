@@ -334,6 +334,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
       return {
         'STT': index + 1,
         'Title': item.title || '',
+        'Cuisine/Service Type': item.cuisineType || '',
         'Email': item.email || '',
         'Phone': phoneStr,
         'Address': item.address || '',
@@ -350,6 +351,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
     worksheet['!cols'] = [
       { wch: 6 },
       { wch: 30 },
+      { wch: 20 },
       { wch: 25 },
       { wch: 16 },
       { wch: 45 },
@@ -374,6 +376,7 @@ export default function MergeFile({ isDark, setIsLoading }) {
     const cleanedData = mergedResults.map((item) => ({
       stt: item.stt,
       title: item.title || '',
+      cuisineType: item.cuisineType || '',
       email: item.email || '',
       phone: item.phone || '',
       address: item.address || '',

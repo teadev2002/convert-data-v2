@@ -16,6 +16,7 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
           <tr>
             <th className="col-stt">STT</th>
             <th className="col-title">Tên cơ sở</th>
+            <th className="col-cuisine" style={{ minWidth: '120px' }}>Loại hình</th>
             <th className="col-email">Email</th>
             <th className="col-phone">Số điện thoại</th>
             <th className="col-address">Địa chỉ</th>
@@ -57,6 +58,11 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
                     ⚠️ {row.duplicateSource === 'file' ? 'Trùng trong tệp' : 'Trùng trong kho'}
                   </span>
                 )}
+              </td>
+
+              {/* Loại hình */}
+              <td className="col-cuisine" style={{ fontStyle: 'italic' }}>
+                {row.cuisineType || <span className="empty-text">-</span>}
               </td>
 
               {/* Cột email */}

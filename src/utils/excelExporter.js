@@ -23,6 +23,7 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
     return {
       'STT': index + 1,
       'Title': item.title || '',
+      'Cuisine/Service Type': item.cuisineType || '',
       'Email': item.email || '',
       'Phone': phoneStr,
       'Address': item.address || '',
@@ -42,6 +43,7 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
   const columnWidths = [
     { wch: 6 },   // Cột STT
     { wch: 30 },  // Cột Title
+    { wch: 20 },  // Cột Cuisine/Service Type
     { wch: 25 },  // Cột Email
     { wch: 16 },  // Cột Phone
     { wch: 45 },  // Cột Address

@@ -14,7 +14,7 @@ const FIELD_ALIASES = {
   email: ['email', 'mail', 'thu_dien_tu', 'thư điện tử', 'contact_email'],
   neighborhood: ['neighborhood', 'phuong', 'phường', 'phuong_xa', 'phường xã', 'khu_vuc', 'khu vực', 'sub_district', 'subdistrict', 'ward', 'phuongxa'],
   source: ['source', 'nguon', 'nguồn', 'nguon_tin', 'nguồn tin'],
-  isFlag: ['isflag', 'is_flag', 'flag', 'danh_dau', 'đánh dấu', 'quan_trong', 'quan trọng']
+  isFlag: ['isflag', 'is_flag', 'flag', 'danh_dau', 'đánh dấu', 'quan_trong', 'quan trọng'],
 };
 
 /**
@@ -103,6 +103,7 @@ export function mapToStandardSchema(rawData) {
     return {
       stt: index + 1,
       title,
+      cuisineType,
       email,
       phone,
       address,
@@ -113,7 +114,6 @@ export function mapToStandardSchema(rawData) {
       source: String(rawSource || '').trim(),
       isFlag: rawIsFlag === true || String(rawIsFlag).trim().toLowerCase() === 'true' || rawIsFlag === 1,
       neighborhood, // Lưu trữ nội bộ để lọc
-      cuisineType,  // Lưu trữ nội bộ
       isDuplicate: false
     };
   });

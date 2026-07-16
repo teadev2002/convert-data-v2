@@ -19,6 +19,7 @@ export default function ResultSection({
         const obj = {
           stt: item.stt,
           title: item.title || '',
+          cuisineType: item.cuisineType || '',
           email: item.email || '',
           phone: item.phone || '',
           address: item.address || '',
