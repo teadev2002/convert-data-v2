@@ -8,26 +8,26 @@ export default function ResultSection({
   dataType,
   onDeleteRow, 
   onSortByScore,
-  onExportExcel
+  onExportExcel,
+  onToggleFlag
 }) {
   const [activeTab, setActiveTab] = useState('table');
 
   const handleCopyAllJson = () => {
     try {
-      const cleanData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
-        const cleanWeb = website || '';
-        const isFb = cleanWeb.toLowerCase().includes('facebook.com') || cleanWeb.toLowerCase().includes('fb.com');
+      const cleanData = data.map((item) => {
         const obj = {
-          stt,
-          title,
-          ...((dataType === 'restaurants' || dataType === 'spa') ? { cuisineType } : {}),
-          email: email || '',
-          phone,
-          address,
-          url,
-          totalScore,
-          website: isFb ? '' : cleanWeb,
-          facebook: isFb ? cleanWeb : ''
+          stt: item.stt,
+          title: item.title || '',
+          email: item.email || '',
+          phone: item.phone || '',
+          address: item.address || '',
+          url: item.url || '',
+          totalScore: item.totalScore || '',
+          website: item.website || '',
+          facebook: item.facebook || '',
+          source: item.source || '',
+          isFlag: !!item.isFlag
         };
         return obj;
       });
@@ -93,7 +93,12 @@ export default function ResultSection({
       {/* Hiển thị nội dung dựa trên tab đang chọn */}
       <div style={{ marginTop: '0.5rem' }}>
         {activeTab === 'table' ? (
-          <TableView data={data} dataType={dataType} onDeleteRow={onDeleteRow} />
+          <TableView 
+            data={data} 
+            dataType={dataType} 
+            onDeleteRow={onDeleteRow} 
+            onToggleFlag={onToggleFlag}
+          />
         ) : (
           <JsonPreview data={data} dataType={dataType} />
         )}

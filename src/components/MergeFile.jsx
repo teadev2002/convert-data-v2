@@ -340,8 +340,9 @@ export default function MergeFile({ isDark, setIsLoading }) {
         'URL': item.url || '',
         'Total Score': item.totalScore || '',
         'Website': item.website || '',
-        'Cuisine/Service Type': item.cuisineType || '',
-        'Neighborhood': item.neighborhood || ''
+        'Facebook': item.facebook || '',
+        'Source': item.source || '',
+        'Is Flag': item.isFlag ? 'TRUE' : 'FALSE'
       };
     });
 
@@ -355,8 +356,9 @@ export default function MergeFile({ isDark, setIsLoading }) {
       { wch: 40 },
       { wch: 12 },
       { wch: 25 },
+      { wch: 25 },
       { wch: 20 },
-      { wch: 20 }
+      { wch: 10 }
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -369,7 +371,19 @@ export default function MergeFile({ isDark, setIsLoading }) {
   const handleExportJson = () => {
     if (mergedResults.length === 0) return;
 
-    const cleanedData = mergedResults.map(({ neighborhood, isUpdated, source, isDuplicate, duplicateSource, ...rest }) => rest);
+    const cleanedData = mergedResults.map((item) => ({
+      stt: item.stt,
+      title: item.title || '',
+      email: item.email || '',
+      phone: item.phone || '',
+      address: item.address || '',
+      url: item.url || '',
+      totalScore: item.totalScore || '',
+      website: item.website || '',
+      facebook: item.facebook || '',
+      source: item.source || '',
+      isFlag: !!item.isFlag
+    }));
     const jsonString = JSON.stringify(cleanedData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -703,6 +717,12 @@ export default function MergeFile({ isDark, setIsLoading }) {
                   <th>Email</th>
                   <th className="col-phone">Điện thoại</th>
                   <th className="col-address">Địa chỉ</th>
+                  <th>Bản đồ</th>
+                  <th>Điểm số</th>
+                  <th>Website</th>
+                  <th>Facebook</th>
+                  <th>Nguồn tin</th>
+                  <th style={{ textAlign: 'center' }}>Đánh dấu</th>
                   <th>Nguồn gốc</th>
                 </tr>
               </thead>
@@ -742,6 +762,37 @@ export default function MergeFile({ isDark, setIsLoading }) {
                       </td>
                       <td className="col-phone">{item.phone || <span className="empty-text">Chưa có SĐT</span>}</td>
                       <td className="col-address">{item.address || <span className="empty-text">Chưa có địa chỉ</span>}</td>
+                      <td>
+                        {item.url ? (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="external-link">📍 Maps</a>
+                        ) : (
+                          <span className="empty-text">-</span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{item.totalScore || <span className="empty-text">-</span>}</td>
+                      <td>
+                        {item.website ? (
+                          <a href={item.website.startsWith('http') ? item.website : `http://${item.website}`} target="_blank" rel="noopener noreferrer" className="external-link">🌐 Web</a>
+                        ) : (
+                          <span className="empty-text">-</span>
+                        )}
+                      </td>
+                      <td>
+                        {item.facebook ? (
+                          <a href={item.facebook.startsWith('http') ? item.facebook : `https://${item.facebook}`} target="_blank" rel="noopener noreferrer" className="external-link">🔵 Facebook</a>
+                        ) : (
+                          <span className="empty-text">-</span>
+                        )}
+                      </td>
+                      <td>{item.source || <span className="empty-text">-</span>}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={!!item.isFlag}
+                          disabled
+                          style={{ width: '15px', height: '15px', opacity: 0.7 }}
+                        />
+                      </td>
                       <td>
                         <span style={{ 
                           fontSize: '0.75rem', 

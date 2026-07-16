@@ -12,7 +12,9 @@ const FIELD_ALIASES = {
   facebook: ['facebook', 'fb', 'link_facebook', 'facebook_url', 'facebook url'],
   cuisineType: ['cuisine type', 'service type', 'cuisine_type', 'service_type', 'cuisine', 'cuisinetype', 'loai_am_thuc', 'loại ẩm thực', 'am_thuc', 'ẩm thực', 'loai_hinh_am_thuc', 'categoryname', 'category_name', 'category'],
   email: ['email', 'mail', 'thu_dien_tu', 'thư điện tử', 'contact_email'],
-  neighborhood: ['neighborhood', 'phuong', 'phường', 'phuong_xa', 'phường xã', 'khu_vuc', 'khu vực', 'sub_district', 'subdistrict', 'ward', 'phuongxa']
+  neighborhood: ['neighborhood', 'phuong', 'phường', 'phuong_xa', 'phường xã', 'khu_vuc', 'khu vực', 'sub_district', 'subdistrict', 'ward', 'phuongxa'],
+  source: ['source', 'nguon', 'nguồn', 'nguon_tin', 'nguồn tin'],
+  isFlag: ['isflag', 'is_flag', 'flag', 'danh_dau', 'đánh dấu', 'quan_trong', 'quan trọng']
 };
 
 /**
@@ -65,6 +67,8 @@ export function mapToStandardSchema(rawData) {
     const rawCuisineType = getValueByAliases(item, FIELD_ALIASES.cuisineType);
     const rawEmail = getValueByAliases(item, FIELD_ALIASES.email);
     const rawNeighborhood = getValueByAliases(item, FIELD_ALIASES.neighborhood);
+    const rawSource = getValueByAliases(item, FIELD_ALIASES.source);
+    const rawIsFlag = getValueByAliases(item, FIELD_ALIASES.isFlag);
 
     // Chuẩn hóa định dạng
     const title = String(rawTitle).trim();
@@ -82,8 +86,8 @@ export function mapToStandardSchema(rawData) {
     const address = cleanAddressStr(rawAddress);
     const url = String(rawUrl).trim();
     
-    // Nếu có cột Facebook riêng biệt từ tệp Excel, gộp nó vào Website để xử lý đồng bộ
-    const website = String(rawWebsite || rawFacebook || '').trim();
+    const website = String(rawWebsite).trim();
+    const facebook = String(rawFacebook).trim();
     
     const cuisineType = String(rawCuisineType).trim();
     const email = rawEmail ? String(rawEmail).trim() : '';
@@ -99,14 +103,17 @@ export function mapToStandardSchema(rawData) {
     return {
       stt: index + 1,
       title,
+      email,
       phone,
       address,
       url,
       totalScore,
       website,
-      cuisineType,
-      email,
-      neighborhood,
+      facebook,
+      source: String(rawSource || '').trim(),
+      isFlag: rawIsFlag === true || String(rawIsFlag).trim().toLowerCase() === 'true' || rawIsFlag === 1,
+      neighborhood, // Lưu trữ nội bộ để lọc
+      cuisineType,  // Lưu trữ nội bộ
       isDuplicate: false
     };
   });

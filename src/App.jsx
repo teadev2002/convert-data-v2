@@ -523,6 +523,21 @@ function App() {
     toast.success('Đã xóa dòng dữ liệu khỏi màn hình.');
   };
 
+  // --- Hành động: Bật/Tắt đánh dấu quan trọng (isFlag) ---
+  const handleToggleFlag = (index) => {
+    const targetItem = displayedData[index];
+    if (!targetItem) return;
+
+    const updatedData = currentData.map(item => {
+      if (item === targetItem) {
+        return { ...item, isFlag: !item.isFlag };
+      }
+      return item;
+    });
+
+    setCurrentData(updatedData);
+  };
+
   // --- Hành động: Loại bỏ đồng loạt các bản ghi không khớp bộ lọc địa chỉ ---
   const handleDiscardNonMatchingRows = () => {
     if (!addressFilterText.trim()) return;
@@ -931,6 +946,7 @@ function App() {
             onDeleteRow={handleDeleteRow}
             onSortByScore={handleSortByScore}
             onExportExcel={handleExportExcel}
+            onToggleFlag={handleToggleFlag}
           />
 
           {/* --- CÁC POPUP MODALS TÙY BIẾN --- */}

@@ -3,20 +3,19 @@ import { toast } from 'react-toastify';
 
 export default function JsonPreview({ data, dataType }) {
   // Lọc bớt cờ isDuplicate khi hiển thị và xuất JSON cho người dùng
-  const cleanJsonData = data.map(({ stt, title, phone, address, url, totalScore, website, cuisineType, email }) => {
-    const cleanWeb = website || '';
-    const isFb = cleanWeb.toLowerCase().includes('facebook.com') || cleanWeb.toLowerCase().includes('fb.com');
+  const cleanJsonData = data.map((item) => {
     const obj = {
-      stt,
-      title,
-      ...((dataType === 'restaurants' || dataType === 'spa') ? { cuisineType } : {}),
-      email: email || '',
-      phone,
-      address,
-      url,
-      totalScore,
-      website: isFb ? '' : cleanWeb,
-      facebook: isFb ? cleanWeb : ''
+      stt: item.stt,
+      title: item.title || '',
+      email: item.email || '',
+      phone: item.phone || '',
+      address: item.address || '',
+      url: item.url || '',
+      totalScore: item.totalScore || '',
+      website: item.website || '',
+      facebook: item.facebook || '',
+      source: item.source || '',
+      isFlag: !!item.isFlag
     };
     return obj;
   });

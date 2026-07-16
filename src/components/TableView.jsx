@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function TableView({ data, dataType, onDeleteRow }) {
+export default function TableView({ data, dataType, onDeleteRow, onToggleFlag }) {
   if (!data || data.length === 0) {
     return (
       <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -9,8 +9,6 @@ export default function TableView({ data, dataType, onDeleteRow }) {
     );
   }
 
-  const hasExtraCol = dataType === 'restaurants' || dataType === 'spa';
-
   return (
     <div className="table-container">
       <table className="hotel-table">
@@ -18,17 +16,15 @@ export default function TableView({ data, dataType, onDeleteRow }) {
           <tr>
             <th className="col-stt">STT</th>
             <th className="col-title">Tên cơ sở</th>
-            {hasExtraCol && (
-              <th className="col-cuisine" style={{ minWidth: '120px' }}>
-                {dataType === 'restaurants' ? 'Loại ẩm thực' : 'Loại dịch vụ'}
-              </th>
-            )}
             <th className="col-email">Email</th>
             <th className="col-phone">Số điện thoại</th>
             <th className="col-address">Địa chỉ</th>
-            <th className="col-score">Điểm số</th>
             <th className="col-url">Bản đồ</th>
+            <th className="col-score">Điểm số</th>
             <th className="col-website">Website</th>
+            <th className="col-facebook">Facebook</th>
+            <th className="col-source">Nguồn tin</th>
+            <th className="col-isflag" style={{ width: '80px', textAlign: 'center' }}>Đánh dấu</th>
             <th style={{ width: '60px', textAlign: 'center' }}>Xóa</th>
           </tr>
         </thead>
@@ -63,13 +59,6 @@ export default function TableView({ data, dataType, onDeleteRow }) {
                 )}
               </td>
 
-              {/* Cột loại hình bổ sung cho nhà hàng hoặc spa */}
-              {hasExtraCol && (
-                <td className="col-cuisine" style={{ fontStyle: 'italic' }}>
-                  {row.cuisineType || <span className="empty-text">-</span>}
-                </td>
-              )}
-
               {/* Cột email */}
               <td className="col-email">
                 {row.email || <span className="empty-text">-</span>}
@@ -83,11 +72,6 @@ export default function TableView({ data, dataType, onDeleteRow }) {
               {/* Cột địa chỉ */}
               <td className="col-address">
                 {row.address || <span className="empty-text">Không có địa chỉ</span>}
-              </td>
-              
-              {/* Điểm đánh giá */}
-              <td className="col-score" style={{ fontWeight: 600 }}>
-                {row.totalScore || <span className="empty-text">-</span>}
               </td>
               
               {/* Đường dẫn bản đồ Google Maps */}
@@ -106,6 +90,11 @@ export default function TableView({ data, dataType, onDeleteRow }) {
                   <span className="empty-text">-</span>
                 )}
               </td>
+
+              {/* Điểm đánh giá */}
+              <td className="col-score" style={{ fontWeight: 600 }}>
+                {row.totalScore || <span className="empty-text">-</span>}
+              </td>
               
               {/* Đường dẫn website khách sạn */}
               <td className="col-website">
@@ -122,6 +111,38 @@ export default function TableView({ data, dataType, onDeleteRow }) {
                 ) : (
                   <span className="empty-text">-</span>
                 )}
+              </td>
+
+              {/* Đường dẫn Facebook */}
+              <td className="col-facebook">
+                {row.facebook ? (
+                  <a 
+                    href={row.facebook.startsWith('http') ? row.facebook : `https://${row.facebook}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="external-link"
+                    title={row.facebook}
+                  >
+                    🔵 Facebook
+                  </a>
+                ) : (
+                  <span className="empty-text">-</span>
+                )}
+              </td>
+
+              {/* Nguồn tin */}
+              <td className="col-source">
+                {row.source || <span className="empty-text">-</span>}
+              </td>
+
+              {/* Checkbox Đánh dấu Flag */}
+              <td className="col-isflag" style={{ textAlign: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={!!row.isFlag}
+                  onChange={() => onToggleFlag && onToggleFlag(index)}
+                  style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                />
               </td>
               
               {/* Nút hành động xóa hàng thủ công */}

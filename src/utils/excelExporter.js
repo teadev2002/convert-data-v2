@@ -20,20 +20,18 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
       phoneStr = `'${phoneStr}`;
     }
 
-    const cleanWeb = item.website || '';
-    const isFb = cleanWeb.toLowerCase().includes('facebook.com') || cleanWeb.toLowerCase().includes('fb.com');
-
     return {
       'STT': index + 1,
       'Title': item.title || '',
-      ...(hasExtraCol ? { [dataType === 'restaurants' ? 'Cuisine Type' : 'Service Type']: item.cuisineType || '' } : {}),
       'Email': item.email || '',
       'Phone': phoneStr,
       'Address': item.address || '',
       'URL': item.url || '',
       'Total Score': item.totalScore !== undefined && item.totalScore !== null ? String(item.totalScore) : '',
-      'Website': isFb ? '' : cleanWeb,
-      'Facebook': isFb ? cleanWeb : ''
+      'Website': item.website || '',
+      'Facebook': item.facebook || '',
+      'Source': item.source || '',
+      'Is Flag': item.isFlag ? 'TRUE' : 'FALSE'
     };
   });
 
@@ -44,14 +42,15 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
   const columnWidths = [
     { wch: 6 },   // Cột STT
     { wch: 30 },  // Cột Title
-    ...(hasExtraCol ? [{ wch: 20 }] : []), // Cột Cuisine/Service Type
     { wch: 25 },  // Cột Email
     { wch: 16 },  // Cột Phone
     { wch: 45 },  // Cột Address
     { wch: 40 },  // Cột URL
     { wch: 12 },  // Cột Total Score
     { wch: 25 },  // Cột Website
-    { wch: 25 }   // Cột Facebook
+    { wch: 25 },  // Cột Facebook
+    { wch: 20 },  // Cột Source
+    { wch: 10 }   // Cột Is Flag
   ];
   worksheet['!cols'] = columnWidths;
 

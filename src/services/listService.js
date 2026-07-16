@@ -98,14 +98,17 @@ export const listService = {
       stt: idx + 1,
       id: r.id || `${provinceId}-${idx}`,
       title: r.title || '',
+      email: r.email || '',
       phone: r.phone || '',
       address: r.address || '',
       url: r.url || '',
       totalScore: r.totalScore !== undefined && r.totalScore !== null ? String(r.totalScore) : '',
       website: r.website || '',
-      email: r.email || '',
+      facebook: r.facebook || '',
+      source: r.source || '',
+      isFlag: !!r.isFlag,
       neighborhood: r.neighborhood || '',
-      ...(dataType === 'restaurants' || dataType === 'spa' ? { cuisineType: r.cuisineType || '' } : {}),
+      cuisineType: r.cuisineType || '',
       isDuplicate: false
     }));
 
@@ -139,14 +142,17 @@ export const listService = {
     const cleanNewData = newData.map((item, idx) => ({
       id: `${targetProvinceName}-${Date.now()}-${idx}`,
       title: item.title || '',
+      email: item.email || '',
       phone: item.phone || '',
       address: item.address || '',
       url: item.url || '',
       totalScore: item.totalScore !== undefined && item.totalScore !== null ? String(item.totalScore) : '',
       website: item.website || '',
-      email: item.email || '',
+      facebook: item.facebook || '',
+      source: item.source || '',
+      isFlag: !!item.isFlag,
       neighborhood: item.neighborhood || '',
-      ...(dataType === 'restaurants' || dataType === 'spa' ? { cuisineType: item.cuisineType || '' } : {})
+      cuisineType: item.cuisineType || ''
     }));
 
     // Kiểm tra chế độ ghi đè: Nếu activeListId khớp với tên tỉnh muốn lưu
