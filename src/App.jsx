@@ -325,7 +325,12 @@ function App() {
     }
 
     setIsChecking(true);
+    const toastId = toast.loading('Đang tiến hành đối chiếu trùng lặp diện rộng...');
+
     try {
+      // Trễ nhân tạo 900ms để hiệu ứng trực quan hiển thị rõ ràng và người dùng yên tâm
+      await new Promise(resolve => setTimeout(resolve, 900));
+
       // Gọi đối chiếu với dữ liệu Local Storage
       const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType, dupFields);
 
@@ -400,8 +405,29 @@ function App() {
 
       setCurrentData(updatedData);
 
-      // Dữ liệu trùng lặp sẽ tự động được phản ánh và cập nhật thông báo Ant Design Alert thông qua useEffect
+      const dupCount = updatedData.filter(item => item.isDuplicate).length;
+      if (dupCount > 0) {
+        toast.update(toastId, {
+          render: `Kiểm tra hoàn tất! Phát hiện ${dupCount} dòng trùng lặp.`,
+          type: 'warning',
+          isLoading: false,
+          autoClose: 3000
+        });
+      } else {
+        toast.update(toastId, {
+          render: 'Kiểm tra hoàn tất! Không phát hiện bản ghi trùng lặp nào.',
+          type: 'success',
+          isLoading: false,
+          autoClose: 3000
+        });
+      }
     } catch (err) {
+      toast.update(toastId, {
+        render: `Lỗi kiểm tra trùng lặp: ${err.message}`,
+        type: 'error',
+        isLoading: false,
+        autoClose: 3500
+      });
       setActiveAlert({
         type: 'error',
         message: 'Lỗi kiểm tra trùng lặp',
@@ -976,6 +1002,13 @@ function App() {
         <div className="loading-overlay">
           <div className="spinner"></div>
           <span>Đang đồng bộ dữ liệu...</span>
+        </div>
+      )}
+
+      {isChecking && (
+        <div className="loading-overlay">
+          <div className="spinner"></div>
+          <span>Đang tiến hành kiểm tra trùng lặp diện rộng, vui lòng đợi...</span>
         </div>
       )}
 
