@@ -25,7 +25,7 @@ import './App.css';
 // Bản đồ đồng nghĩa cho các tỉnh thành lớn để lọc địa chỉ thông minh
 const PROVINCE_SYNONYMS = [
   {
-    keys: ['ho chi minh', 'hồ chí minh', 'hcm', 'tp.hcm', 'tphcm', 'sai gon', 'sài gòn', 'saigon', 'Ho Chi Minh'],
+    keys: ['ho chi minh', 'hồ chí minh', 'hcm', 'tp.hcm', 'tphcm', 'sai gon', 'sài gòn', 'saigon', 'Ho Chi Minh', 'Hồ Chí Minh', 'TP.HCN', 'TP.Hồ Chí Minh'],
     variants: [
       'hồ chí minh', 'ho chi minh', 'hcm', 'tp.hcm', 'tphcm',
       'sài gòn', 'sai gon', 'saigon', 'ho chi minh, vietnam', 'Ho Chi Minh',
