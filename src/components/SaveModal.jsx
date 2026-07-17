@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 // Danh sách các tỉnh thành định nghĩa sẵn theo yêu cầu người dùng
-export const provinces = [
+const provinces = [
   {
     value: "Tuyên Quang",
     label: "Tuyên Quang (Hà Giang - Tuyên Quang)"
@@ -140,30 +140,32 @@ export const provinces = [
   }
 ];
 
-export default function SaveModal({ isOpen, lists, dataType, onSave, onCancel }) {
+export default function SaveModal({ isOpen, lists, dataType, onSave, onCancel, isLoading }) {
   const [selectedExistingId, setSelectedExistingId] = useState('');
   const [selectedNewProvince, setSelectedNewProvince] = useState('');
+  const [prevIsOpen, setPrevIsOpen] = useState(false);
 
-  const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
-
-  // Reset state mỗi khi mở modal
-  useEffect(() => {
+  // Reset state mỗi khi mở modal (thực hiện đồng bộ trực tiếp trong Render)
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setSelectedExistingId('');
       setSelectedNewProvince('');
     }
-  }, [isOpen]);
+  }
 
-  // Đóng modal bằng Escape
+  const displayType = dataType === 'hotels' ? 'khách sạn' : 'nhà hàng';
+
+  // Đóng modal bằng Escape (chỉ cho phép nếu không đang trong quá trình lưu)
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape' && !isLoading) onCancel();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel]);
+  }, [isOpen, onCancel, isLoading]);
 
   if (!isOpen) return null;
 
@@ -185,11 +187,19 @@ export default function SaveModal({ isOpen, lists, dataType, onSave, onCancel })
   };
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" onClick={isLoading ? null : onCancel}>
       <form className="modal-content" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div className="modal-header">
           <h3>Lưu danh sách {displayType}</h3>
-          <button type="button" className="modal-close-btn" onClick={onCancel} aria-label="Đóng">&times;</button>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onCancel}
+            aria-label="Đóng"
+            disabled={isLoading}
+          >
+            &times;
+          </button>
         </div>
 
         <div className="modal-body">
@@ -205,6 +215,7 @@ export default function SaveModal({ isOpen, lists, dataType, onSave, onCancel })
                 setSelectedExistingId(e.target.value);
                 setSelectedNewProvince(''); // Reset lựa chọn tỉnh mới khi chọn gộp
               }}
+              disabled={isLoading}
             >
               <option value="">-- Lưu thành tỉnh thành--</option>
               {lists.map(list => (
@@ -224,7 +235,7 @@ export default function SaveModal({ isOpen, lists, dataType, onSave, onCancel })
               className="form-select"
               value={selectedNewProvince}
               onChange={(e) => setSelectedNewProvince(e.target.value)}
-              disabled={selectedExistingId !== ''}
+              disabled={isLoading || selectedExistingId !== ''}
               required={selectedExistingId === ''}
             >
               <option value="">-- Chọn tỉnh thành mới --</option>
@@ -243,13 +254,28 @@ export default function SaveModal({ isOpen, lists, dataType, onSave, onCancel })
         </div>
 
         <div className="modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Hủy</button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Hủy
+          </button>
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={selectedExistingId === '' && !selectedNewProvince}
+            disabled={isLoading || (selectedExistingId === '' && !selectedNewProvince)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            Lưu dữ liệu
+            {isLoading ? (
+              <>
+                <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderLeftColor: '#ffffff' }}></span>
+                Đang lưu...
+              </>
+            ) : (
+              'Lưu dữ liệu'
+            )}
           </button>
         </div>
       </form>

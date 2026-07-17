@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Alert, Button, Popconfirm } from 'antd';
@@ -22,6 +22,87 @@ import { exportToExcel } from './utils/excelExporter.js';
 // Styles chính
 import './App.css';
 
+// Bản đồ đồng nghĩa cho các tỉnh thành lớn để lọc địa chỉ thông minh
+const PROVINCE_SYNONYMS = [
+  {
+    keys: ['ho chi minh', 'hồ chí minh', 'hcm', 'tp.hcm', 'tphcm', 'sai gon', 'sài gòn', 'saigon'],
+    variants: [
+      'hồ chí minh', 'ho chi minh', 'hcm', 'tp.hcm', 'tphcm',
+      'sài gòn', 'sai gon', 'saigon', 'ho chi minh, vietnam',
+      'hồ chí minh, vietnam', 'hồ chí minh, việt nam', 'ho chi minh, viet nam'
+    ]
+  },
+  {
+    keys: ['ha noi', 'hà nội', 'hn', 'tp.hn', 'tphn'],
+    variants: ['hà nội', 'ha noi', 'hn', 'tp.hn', 'tphn', 'hà nội, việt nam', 'ha noi, vietnam']
+  },
+  {
+    keys: ['da nang', 'đà nẵng', 'tp.dn', 'tpdn'],
+    variants: ['đà nẵng', 'da nang', 'tp.dn', 'tpdn']
+  },
+  {
+    keys: ['dong nai', 'đồng nai'],
+    variants: ['đồng nai', 'dong nai']
+  },
+  {
+    keys: ['binh duong', 'bình dương'],
+    variants: ['bình dương', 'binh duong']
+  },
+  {
+    keys: ['nha trang', 'khanh hoa', 'khánh hòa'],
+    variants: ['nha trang', 'khánh hòa', 'khanh hoa']
+  },
+  {
+    keys: ['hai phong', 'hải phòng'],
+    variants: ['hải phòng', 'hai phong']
+  },
+  {
+    keys: ['can tho', 'cần thơ'],
+    variants: ['cần thơ', 'can tho']
+  },
+  {
+    keys: ['vung tau', 'vũng tàu'],
+    variants: ['vũng tàu', 'vung tau']
+  },
+  {
+    keys: ['hue', 'huế'],
+    variants: ['huế', 'hue', 'thừa thiên huế', 'thua thien hue']
+  }
+];
+
+// Chuẩn hoá chuỗi: bỏ dấu, chữ thường, trim
+const normalizeStr = (str) =>
+  str.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').normalize('NFC');
+
+// Đối chiếu địa chỉ có hỗ trợ từ khóa đồng nghĩa tỉnh thành
+const matchAddressWithSynonyms = (addressStr, filterText) => {
+  if (!filterText) return true;
+  if (!addressStr) return false;
+
+  const normFilter = normalizeStr(filterText);
+  const normAddress = normalizeStr(addressStr);
+
+  // Tìm nhóm đồng nghĩa phù hợp với từ khóa
+  const matchedGroup = PROVINCE_SYNONYMS.find(group =>
+    group.keys.some(key => {
+      const normKey = normalizeStr(key);
+      return normFilter === normKey ||
+        (normFilter.length >= 2 && normKey.includes(normFilter)) ||
+        (normFilter.length >= 2 && normFilter.includes(normKey));
+    })
+  );
+
+  if (matchedGroup) {
+    // Kiểm tra địa chỉ có chứa bất kỳ biến thể đồng nghĩa nào không
+    return matchedGroup.variants.some(variant =>
+      normAddress.includes(normalizeStr(variant))
+    );
+  }
+
+  // Fallback: tìm kiếm chuỗi con thông thường
+  return normAddress.includes(normFilter);
+};
+
 function App() {
   // --- Cơ chế định tuyến nhẹ (Routing) ---
   const [currentRoute, setCurrentRoute] = useState(window.location.pathname);
@@ -42,7 +123,6 @@ function App() {
   // --- States toàn cục quản lý luồng dữ liệu ---
   const [dataType, setDataType] = useState('hotels'); // 'hotels', 'restaurants' hoặc 'spa'
   const [rawInput, setRawInput] = useState(''); // Lưu nội dung nhập liệu hoặc kéo thả thô
-  const [originalData, setOriginalData] = useState([]); // Lưu dữ liệu thô sau khi parse (chưa qua lọc)
   const [currentData, setCurrentData] = useState([]); // Dữ liệu đang trực quan hóa (sau khi sắp xếp, lọc...)
   const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Local Storage (provinces)
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(''); // Bộ lọc Phường / Xã đang chọn
@@ -50,6 +130,27 @@ function App() {
 
   const [selectedListId, setSelectedListId] = useState(''); // ID tỉnh thành đang chọn ở dropdown
   const [activeListId, setActiveListId] = useState(''); // ID tỉnh thành cũ đang hiển thị trên bảng
+
+  // --- States quản lý hiển thị các Modals ---
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+    onCancel: () => { }
+  });
+
+  // --- Lọc đồng thời quản lý đóng/mở Alerts ---
+  const [prevData, setPrevData] = useState([]);
+  const [isAlertDismissed, setIsAlertDismissed] = useState(false);
+  const [customErrorAlert, setCustomErrorAlert] = useState(null);
+
+  if (currentData !== prevData) {
+    setPrevData(currentData);
+    setIsAlertDismissed(false);
+    setCustomErrorAlert(null);
+  }
 
   const [isLoading, setIsLoading] = useState(false); // Trạng thái tải dữ liệu chung
   const [isChecking, setIsChecking] = useState(false); // Trạng thái gọi API check trùng lặp
@@ -62,11 +163,75 @@ function App() {
   const handleDupFieldsChange = (field) => {
     setDupFields(prev => ({ ...prev, [field]: !prev[field] }));
   };
-  const [isDarkTheme, setIsDarkTheme] = useState(false); // Trạng thái giao diện Tối/Sáng
+
+  const [isDarkTheme, setIsDarkTheme] = useState(() => {
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (systemPrefersDark) {
+      document.documentElement.classList.add('dark-theme');
+      return true;
+    }
+    return false;
+  }); // Trạng thái giao diện Tối/Sáng
   const [lastSavedTime, setLastSavedTime] = useState(0); // Trigger để tính toán lại hasUnsavedData sau khi lưu/xóa
+
+  // --- Các hàm hỗ trợ dùng useCallback để tránh vấn đề hoisting/đệ quy ---
+  // --- Lấy danh mục các tỉnh thành từ Local Storage ---
+  const loadSavedLists = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await listService.getAll(dataType);
+      setLists(data || []);
+    } catch (err) {
+      toast.error(`Lỗi tải danh sách tỉnh thành: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dataType]);
+
+  // --- Hành động: Xóa các dòng trùng lặp khỏi bảng hiển thị ---
+  const handleRemoveDuplicates = useCallback(() => {
+    const beforeCount = currentData.length;
+    const cleanData = currentData.filter(item => !item.isDuplicate);
+
+    if (cleanData.length === beforeCount) {
+      toast.info('Bảng hiện tại không chứa dòng trùng lặp nào để xóa.');
+      return;
+    }
+
+    // Sắp xếp và đánh lại số thứ tự STT bắt từ 1
+    const reindexedData = cleanData.map((item, idx) => ({
+      ...item,
+      stt: idx + 1,
+      isDuplicate: false // Reset cờ trùng
+    }));
+
+    setCurrentData(reindexedData);
+    toast.success(`Đã loại bỏ thành công ${beforeCount - reindexedData.length} dòng trùng lặp!`);
+  }, [currentData]);
+
+  // --- Chuyển đổi chủ đề Light / Dark Mode ---
+  const handleToggleTheme = () => {
+    setIsDarkTheme(prev => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add('dark-theme');
+      } else {
+        document.documentElement.classList.remove('dark-theme');
+      }
+      return next;
+    });
+  };
+
+  const handleCloseAlert = () => {
+    setIsAlertDismissed(true);
+    setCustomErrorAlert(null);
+  };
 
   // --- Tự động kiểm tra xem bảng hiển thị có chứa bản ghi chưa được lưu hay không ---
   const hasUnsavedData = useMemo(() => {
+    // Đọc biến lastSavedTime để kích hoạt tính toán lại khi dữ liệu được lưu
+    const _ = lastSavedTime;
+    console.log('Checking unsaved data...', _);
     if (currentData.length === 0) return false;
 
     // Tải tất cả bản ghi đã lưu từ Local Storage để đối chiếu
@@ -122,13 +287,13 @@ function App() {
     });
   }, [currentData, dupFields, lastSavedTime]);
 
-
-
   // --- Tự động cập nhật thông tin cảnh báo bằng Ant Design Alert dựa trên dữ liệu hiện tại ---
-  useEffect(() => {
+  const activeAlert = useMemo(() => {
+    if (isAlertDismissed) return null;
+    if (customErrorAlert) return customErrorAlert;
+
     if (currentData.length === 0) {
-      setActiveAlert(null);
-      return;
+      return null;
     }
 
     const duplicateCount = currentData.filter(item => item.isDuplicate).length;
@@ -139,33 +304,33 @@ function App() {
 
       // Nếu toàn bộ dữ liệu bị trùng lặp (không có dòng mới)
       if (duplicateCount === currentData.length) {
-        setActiveAlert({
+        return {
           type: 'info',
           message: 'Toàn bộ dữ liệu đã trùng khớp (Trùng 100%)',
           description: `Tất cả ${duplicateCount} bản ghi vừa nạp đều đã tồn tại trong kho lưu trữ Local Storage (${storageCount} dòng trùng trong kho, ${fileCount} dòng trùng chéo trong tệp). Vui lòng nhấn nút bên phải để xóa các bản ghi trùng lặp. Đảm bảo bạn chọn đúng loại hình dịch vụ và đúng phường/xã để kiểm trùng cho lần sau.`,
           action: (
-            <Button size="small" type="primary" onClick={() => handleRemoveDuplicates()}>
+            <Button size="small" type="primary" onClick={handleRemoveDuplicates}>
               Xóa trùng lặp
             </Button>
           )
-        });
+        };
       } else {
         // Trùng lặp một phần
-        setActiveAlert({
+        return {
           type: 'warning',
           message: `Phát hiện ${duplicateCount} dòng trùng lặp`,
           description: `Tìm thấy ${storageCount} dòng trùng trong kho Local Storage và ${fileCount} dòng trùng chéo trong tệp vừa nạp. Các bản ghi này đã được tô màu vàng trên bảng hiển thị.`,
           action: (
-            <Button size="small" danger onClick={() => handleRemoveDuplicates()}>
+            <Button size="small" danger onClick={handleRemoveDuplicates}>
               Xóa trùng lặp
             </Button>
           )
-        });
+        };
       }
     } else {
       // Không có dòng trùng nào
       if (hasUnsavedData) {
-        setActiveAlert({
+        return {
           type: 'warning',
           message: 'Cảnh báo: Dữ liệu chưa được lưu (Unsaved Changes)',
           description: 'Bạn có các thay đổi chưa được lưu vào Local Storage. Nếu tải lại trang (Reload) hoặc đóng tab trình duyệt, toàn bộ dữ liệu này sẽ bị mất.',
@@ -174,80 +339,32 @@ function App() {
               Lưu ngay
             </Button>
           )
-        });
-      } else {
-        // Tất cả dữ liệu đã lưu và không có dòng trùng
-        setActiveAlert(null);
+        };
       }
     }
-  }, [currentData, hasUnsavedData]);
-
-  // --- States quản lý hiển thị các Modals ---
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [activeAlert, setActiveAlert] = useState(null); // Trạng thái hiển thị thông báo antd Alert
-  const [confirmConfig, setConfirmConfig] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: () => { },
-    onCancel: () => { }
-  });
-
-  // --- Khởi tạo theme khi mở trang ---
-  useEffect(() => {
-    // Tự động kiểm tra cài đặt Dark Mode của hệ thống
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (systemPrefersDark) {
-      setIsDarkTheme(true);
-      document.documentElement.classList.add('dark-theme');
-    }
-  }, []);
+    return null;
+  }, [isAlertDismissed, customErrorAlert, currentData, hasUnsavedData, handleRemoveDuplicates]);
 
   // --- Tự động tải lại danh sách tỉnh thành mỗi khi đổi Tab Hotels / Restaurants / Spa ---
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSavedLists();
-
-    // Reset toàn bộ trạng thái dữ liệu cũ
-    setSelectedListId('');
-    setActiveListId('');
-    setCurrentData([]);
-    setOriginalData([]);
-    setRawInput('');
-    setSelectedNeighborhood('');
-    setAddressFilterText('');
-    setActiveAlert(null); // Clear any active alerts
-  }, [dataType]);
-
-  // --- Lấy danh mục các tỉnh thành từ Local Storage ---
-  const loadSavedLists = async () => {
-    setIsLoading(true);
-    try {
-      const data = await listService.getAll(dataType);
-      setLists(data || []);
-    } catch (err) {
-      toast.error(`Lỗi tải danh sách tỉnh thành: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // --- Chuyển đổi chủ đề Light / Dark Mode ---
-  const handleToggleTheme = () => {
-    setIsDarkTheme(prev => {
-      const next = !prev;
-      if (next) {
-        document.documentElement.classList.add('dark-theme');
-      } else {
-        document.documentElement.classList.remove('dark-theme');
-      }
-      return next;
-    });
-  };
+  }, [dataType, loadSavedLists]);
 
   // --- Kiểm tra và chuyển đổi Tab loại hình dịch vụ ---
   const handleTabChange = (newType) => {
     if (newType === dataType) return;
     setDataType(newType);
+
+    // Reset toàn bộ trạng thái dữ liệu cũ khi đổi tab (thực hiện đồng bộ trong Event Handler)
+    setSelectedListId('');
+    setActiveListId('');
+    setCurrentData([]);
+    setRawInput('');
+    setSelectedNeighborhood('');
+    setAddressFilterText('');
+    setIsAlertDismissed(false);
+    setCustomErrorAlert(null);
   };
 
   // --- Xử lý nạp văn bản thô (khi dán hoặc kéo thả tệp) ---
@@ -259,7 +376,6 @@ function App() {
       try {
         const parsed = parseHotelData(text);
         if (parsed.length > 0) {
-          setOriginalData(parsed);
           setCurrentData(parsed);
           setActiveListId(''); // Reset activeListId vì đây là tệp mới import
           toast.success(`Đã nạp và xử lý tự động ${parsed.length} bản ghi!`);
@@ -283,34 +399,12 @@ function App() {
         toast.warn('Không tìm thấy dữ liệu hợp lệ. Hãy kiểm tra định dạng.');
         return;
       }
-      setOriginalData(parsed);
       setCurrentData(parsed);
       setActiveListId('');
       toast.success(`Đã chuyển đổi và chuẩn hóa thành công ${parsed.length} bản ghi!`);
     } catch (err) {
       toast.error(`Lỗi xử lý cú pháp dữ liệu: ${err.message}`);
     }
-  };
-
-  // --- Hành động: Xóa các dòng trùng lặp khỏi bảng hiển thị ---
-  const handleRemoveDuplicates = () => {
-    const beforeCount = currentData.length;
-    const cleanData = currentData.filter(item => !item.isDuplicate);
-
-    if (cleanData.length === beforeCount) {
-      toast.info('Bảng hiện tại không chứa dòng trùng lặp nào để xóa.');
-      return;
-    }
-
-    // Sắp xếp và đánh lại số thứ tự STT bắt từ 1
-    const reindexedData = cleanData.map((item, idx) => ({
-      ...item,
-      stt: idx + 1,
-      isDuplicate: false // Reset cờ trùng
-    }));
-
-    setCurrentData(reindexedData);
-    toast.success(`Đã loại bỏ thành công ${beforeCount - reindexedData.length} dòng trùng lặp!`);
   };
 
   // --- Hành động: Kiểm tra trùng lặp diện rộng (gọi đối chiếu Local Storage) ---
@@ -428,7 +522,7 @@ function App() {
         isLoading: false,
         autoClose: 3500
       });
-      setActiveAlert({
+      setCustomErrorAlert({
         type: 'error',
         message: 'Lỗi kiểm tra trùng lặp',
         description: err.message
@@ -447,7 +541,6 @@ function App() {
       const list = await listService.getById(selectedListId, dataType);
       if (list) {
         const dbData = list.data || [];
-        setOriginalData(dbData);
         setCurrentData(dbData);
         setActiveListId(list.id);
 
@@ -487,7 +580,6 @@ function App() {
           if (activeListId === selectedListId) {
             setActiveListId('');
             setCurrentData([]);
-            setOriginalData([]);
             setRawInput('');
             setSelectedNeighborhood('');
           }
@@ -567,9 +659,8 @@ function App() {
   // --- Hành động: Loại bỏ đồng loạt các bản ghi không khớp bộ lọc địa chỉ ---
   const handleDiscardNonMatchingRows = () => {
     if (!addressFilterText.trim()) return;
-    const query = addressFilterText.trim().toLowerCase();
 
-    const kept = currentData.filter(item => item.address && item.address.toLowerCase().includes(query));
+    const kept = currentData.filter(item => matchAddressWithSynonyms(item.address, addressFilterText));
     const discardedCount = currentData.length - kept.length;
 
     if (discardedCount === 0) {
@@ -590,9 +681,8 @@ function App() {
   // --- Hành động: Lưu các bản ghi không khớp địa chỉ vào kho Temp riêng trên Local Storage ---
   const handleSaveNonMatchingRowsToTemp = async () => {
     if (!addressFilterText.trim()) return;
-    const query = addressFilterText.trim().toLowerCase();
 
-    const nonMatching = currentData.filter(item => !item.address || !item.address.toLowerCase().includes(query));
+    const nonMatching = currentData.filter(item => !matchAddressWithSynonyms(item.address, addressFilterText));
     if (nonMatching.length === 0) {
       toast.info('Mọi bản ghi đều khớp địa chỉ, không có bản ghi nào để lưu vào kho Temp.');
       return;
@@ -617,7 +707,7 @@ function App() {
       const cleanBase = baseProvinceName.replace(/\s*-\s*Temp$/, '');
       const tempProvinceName = `${cleanBase} - Temp`;
 
-      const savedList = await listService.save(
+      await listService.save(
         tempProvinceName,
         nonMatching,
         '',
@@ -717,7 +807,7 @@ function App() {
   };
 
   // Dữ liệu được hiển thị sau khi qua bộ lọc Phường/Xã và lọc Địa chỉ
-  const displayedData = useMemo(() => {
+  const getDisplayedData = () => {
     let data = currentData;
 
     // 1. Lọc theo Phường / Xã
@@ -725,14 +815,15 @@ function App() {
       data = data.filter(item => item.neighborhood && item.neighborhood.trim() === selectedNeighborhood);
     }
 
-    // 2. Lọc theo Địa chỉ (không phân biệt hoa thường)
+    // 2. Lọc theo Địa chỉ (thông minh, hỗ trợ từ khóa đồng nghĩa tỉnh thành)
     if (addressFilterText.trim()) {
-      const query = addressFilterText.trim().toLowerCase();
-      data = data.filter(item => item.address && item.address.toLowerCase().includes(query));
+      data = data.filter(item => matchAddressWithSynonyms(item.address, addressFilterText));
     }
 
     return data;
-  }, [currentData, selectedNeighborhood, addressFilterText]);
+  };
+
+  const displayedData = getDisplayedData();
 
   return (
     <div className="app-container">
@@ -862,7 +953,7 @@ function App() {
                   showIcon
                   action={activeAlert.action}
                   closable
-                  onClose={() => setActiveAlert(null)}
+                  onClose={handleCloseAlert}
                 />
               </div>
             )}
@@ -984,6 +1075,7 @@ function App() {
             dataType={dataType}
             onSave={handleSaveData}
             onCancel={() => setIsSaveModalOpen(false)}
+            isLoading={isLoading}
           />
 
           {/* Modal Xác nhận */}
