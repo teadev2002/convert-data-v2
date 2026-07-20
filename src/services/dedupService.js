@@ -1,3 +1,5 @@
+import { storageService } from './storageService.js';
+
 // Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
 function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: true, title: true }) {
   const clean = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
@@ -38,7 +40,7 @@ function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: 
 
 export const dedupService = {
   /**
-   * Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check) diện rộng trên Local Storage
+   * Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check) diện rộng trên IndexedDB / Storage
    * Quét tất cả các key lưu trữ dạng [dataType]-[provinceName] để làm đối chiếu loại trùng
    * @param {Array<Object>} records - Danh sách các bản ghi cần đối chiếu kiểm tra trùng lặp
    * @param {string|null} provinceId - Tên tỉnh thành đang xem (activeListId) dùng để loại trừ
@@ -51,15 +53,16 @@ export const dedupService = {
       const activeKey = provinceId ? `${dataType}-${provinceId}` : null;
       let allDbRecords = [];
 
-      // Quét tất cả các key trong localStorage để gộp dữ liệu đối chiếu chéo
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
+      const allKeys = await storageService.getAllKeys();
+
+      // Quét tất cả các key để gộp dữ liệu đối chiếu chéo
+      for (const key of allKeys) {
         if (key && (key.startsWith('hotels-') || key.startsWith('restaurants-') || key.startsWith('spa-'))) {
           // Bỏ qua key của danh sách hiện đang mở để tránh tự đối chiếu trùng chính nó
           if (activeKey && key.toLowerCase() === activeKey.toLowerCase()) {
             continue;
           }
-          const data = JSON.parse(localStorage.getItem(key) || '[]');
+          const data = (await storageService.getItem(key)) || [];
           allDbRecords = [...allDbRecords, ...data];
         }
       }
@@ -85,7 +88,7 @@ export const dedupService = {
         duplicateStts: uniqueDuplicateStts
       };
     } catch (error) {
-      console.error('Lỗi khi đối chiếu trùng lặp Local Storage:', error);
+      console.error('Lỗi khi đối chiếu trùng lặp Storage:', error);
       return { duplicateStts: [] };
     }
   }

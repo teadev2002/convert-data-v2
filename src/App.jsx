@@ -16,6 +16,7 @@ import MergeFile from './components/MergeFile.jsx';
 // Import các dịch vụ API & tiện ích
 import { listService } from './services/listService.js';
 import { dedupService } from './services/dedupService.js';
+import { storageService } from './services/storageService.js';
 import { parseHotelData } from './utils/parser.js';
 import { exportToExcel } from './utils/excelExporter.js';
 
@@ -228,63 +229,76 @@ function App() {
   };
 
   // --- Tự động kiểm tra xem bảng hiển thị có chứa bản ghi chưa được lưu hay không ---
-  const hasUnsavedData = useMemo(() => {
-    // Đọc biến lastSavedTime để kích hoạt tính toán lại khi dữ liệu được lưu
-    const _ = lastSavedTime;
-    console.log('Checking unsaved data...', _);
-    if (currentData.length === 0) return false;
+  const [hasUnsavedData, setHasUnsavedData] = useState(false);
 
-    // Tải tất cả bản ghi đã lưu từ Local Storage để đối chiếu
-    let allDbRecords = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('hotels-') || key.startsWith('restaurants-') || key.startsWith('spa-'))) {
-        const data = JSON.parse(localStorage.getItem(key) || '[]');
-        allDbRecords = [...allDbRecords, ...data];
+  useEffect(() => {
+    let isMounted = true;
+    const checkUnsaved = async () => {
+      if (currentData.length === 0) {
+        if (isMounted) setHasUnsavedData(false);
+        return;
       }
-    }
 
-    const cleanString = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
-    const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
-
-    // Nếu có ít nhất 1 dòng trong currentData mà KHÔNG tìm thấy dòng trùng trong kho, tức là có dữ liệu mới chưa lưu
-    return currentData.some(item => {
-      const isSaved = allDbRecords.some(dbRec => {
-        let hasCheckedField = false;
-
-        if (dupFields.url) {
-          hasCheckedField = true;
-          const u1 = cleanString(item.url);
-          const u2 = cleanString(dbRec.url);
-          if (!u1 || !u2 || u1 !== u2) return false;
+      const allKeys = await storageService.getAllKeys();
+      let allDbRecords = [];
+      for (const key of allKeys) {
+        if (key && (key.startsWith('hotels-') || key.startsWith('restaurants-') || key.startsWith('spa-'))) {
+          const data = (await storageService.getItem(key)) || [];
+          allDbRecords = [...allDbRecords, ...data];
         }
+      }
 
-        if (dupFields.address) {
-          hasCheckedField = true;
-          const a1 = cleanString(item.address);
-          const a2 = cleanString(dbRec.address);
-          if (!a1 || !a2 || a1 !== a2) return false;
-        }
+      const cleanString = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
+      const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
-        if (dupFields.phone) {
-          hasCheckedField = true;
-          const p1 = cleanPhone(item.phone);
-          const p2 = cleanPhone(dbRec.phone);
-          if (!p1 || !p2 || p1 !== p2) return false;
-        }
+      const result = currentData.some(item => {
+        const isSaved = allDbRecords.some(dbRec => {
+          let hasCheckedField = false;
 
-        if (dupFields.title) {
-          hasCheckedField = true;
-          const t1 = cleanString(item.title);
-          const t2 = cleanString(dbRec.title);
-          if (!t1 || !t2 || t1 !== t2) return false;
-        }
+          if (dupFields.url) {
+            hasCheckedField = true;
+            const u1 = cleanString(item.url);
+            const u2 = cleanString(dbRec.url);
+            if (!u1 || !u2 || u1 !== u2) return false;
+          }
 
-        return hasCheckedField;
+          if (dupFields.address) {
+            hasCheckedField = true;
+            const a1 = cleanString(item.address);
+            const a2 = cleanString(dbRec.address);
+            if (!a1 || !a2 || a1 !== a2) return false;
+          }
+
+          if (dupFields.phone) {
+            hasCheckedField = true;
+            const p1 = cleanPhone(item.phone);
+            const p2 = cleanPhone(dbRec.phone);
+            if (!p1 || !p2 || p1 !== p2) return false;
+          }
+
+          if (dupFields.title) {
+            hasCheckedField = true;
+            const t1 = cleanString(item.title);
+            const t2 = cleanString(dbRec.title);
+            if (!t1 || !t2 || t1 !== t2) return false;
+          }
+
+          return hasCheckedField;
+        });
+
+        return !isSaved;
       });
 
-      return !isSaved;
-    });
+      if (isMounted) {
+        setHasUnsavedData(result);
+      }
+    };
+
+    checkUnsaved();
+
+    return () => {
+      isMounted = false;
+    };
   }, [currentData, dupFields, lastSavedTime]);
 
   // --- Tự động cập nhật thông tin cảnh báo bằng Ant Design Alert dựa trên dữ liệu hiện tại ---

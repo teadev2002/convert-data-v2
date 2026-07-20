@@ -1,3 +1,5 @@
+import { storageService } from './storageService.js';
+
 // Tiện ích chuyển đổi Tiếng Việt có dấu thành slug không dấu thân thiện
 function slugify(text) {
   if (!text) return '';
@@ -53,20 +55,20 @@ function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: 
 
 export const listService = {
   /**
-   * 1. Quét tất cả các key trong Local Storage bắt đầu bằng [dataType]- để lấy danh sách tỉnh thành
+   * 1. Quét tất cả các key trong IndexedDB / Local Storage bắt đầu bằng [dataType]- để lấy danh sách tỉnh thành
    * @param {string} dataType - Loại dữ liệu truy vấn ('hotels', 'restaurants' hoặc 'spa')
    * @returns {Promise<Array>} - Mảng danh sách [{ id, name, slug, count }]
    */
   async getAll(dataType = 'hotels') {
     const prefix = `${dataType}-`;
     const provinces = [];
+    const allKeys = await storageService.getAllKeys();
 
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+    for (const key of allKeys) {
       if (key && key.startsWith(prefix)) {
         const provinceName = key.substring(prefix.length);
-        const records = JSON.parse(localStorage.getItem(key) || '[]');
-        
+        const records = (await storageService.getItem(key)) || [];
+
         provinces.push({
           id: provinceName, // Tên tỉnh đóng vai trò là ID định danh
           name: provinceName,
@@ -88,7 +90,7 @@ export const listService = {
    */
   async getById(provinceId, dataType = 'hotels') {
     const key = `${dataType}-${provinceId}`;
-    const records = JSON.parse(localStorage.getItem(key) || '[]');
+    const records = (await storageService.getItem(key)) || [];
 
     // Sắp xếp theo tiêu đề
     const sortedRecords = records.sort((a, b) => a.title.localeCompare(b.title));
@@ -130,7 +132,7 @@ export const listService = {
    * @param {Object} dupFields - Các trường lọc trùng đang chọn
    * @returns {Promise<Object>} - Trả về tóm tắt tỉnh thành sau khi lưu { id, name, count }
    */
-  async save(provinceName, newData, provinceId = null, dataType = 'hotels', activeListId = '', dupFields = { url: true, address: true, phone: true, title: true }) {
+  async save(provinceName, newData, dataType = 'hotels', activeListId = '', dupFields = { url: true, address: true, phone: true, title: true }) {
     const targetProvinceName = String(provinceName || '').trim();
     if (!targetProvinceName) {
       throw new Error('Tên tỉnh thành không được để trống.');
@@ -159,8 +161,8 @@ export const listService = {
     const isOverwriteMode = activeListId && String(activeListId).trim().toLowerCase() === targetProvinceName.toLowerCase();
 
     if (isOverwriteMode) {
-      // Chế độ ghi đè: Lưu đè toàn bộ lên key tương ứng
-      localStorage.setItem(key, JSON.stringify(cleanNewData));
+      // Chế độ ghi đè: Lưu đè toàn bộ lên key tương ứng trong IndexedDB
+      await storageService.setItem(key, cleanNewData);
 
       return {
         id: targetProvinceName,
@@ -170,7 +172,7 @@ export const listService = {
     }
 
     // Chế độ gộp cộng thêm (Append): Tải dữ liệu cũ của key này lên đối sánh loại trùng
-    const oldRecords = JSON.parse(localStorage.getItem(key) || '[]');
+    const oldRecords = (await storageService.getItem(key)) || [];
     const toInsert = [];
 
     for (const newItem of cleanNewData) {
@@ -200,7 +202,7 @@ export const listService = {
     }
 
     const updatedRecords = [...oldRecords, ...toInsert];
-    localStorage.setItem(key, JSON.stringify(updatedRecords));
+    await storageService.setItem(key, updatedRecords);
 
     return {
       id: targetProvinceName,
@@ -210,14 +212,14 @@ export const listService = {
   },
 
   /**
-   * Xóa toàn bộ dữ liệu của một tỉnh (xóa key tương ứng trong Local Storage)
+   * Xóa toàn bộ dữ liệu của một tỉnh (xóa key tương ứng)
    * @param {string} provinceId - ID của tỉnh (chính là tên tỉnh)
    * @param {string} dataType - Loại dữ liệu ('hotels', 'restaurants' hoặc 'spa')
    * @returns {Promise<boolean>}
    */
   async delete(provinceId, dataType = 'hotels') {
     const key = `${dataType}-${provinceId}`;
-    localStorage.removeItem(key);
+    await storageService.removeItem(key);
     return true;
   }
 };
