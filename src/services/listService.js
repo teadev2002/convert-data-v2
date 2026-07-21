@@ -100,7 +100,6 @@ export const listService = {
       stt: idx + 1,
       id: r.id || `${provinceId}-${idx}`,
       title: r.title || '',
-      cuisineType: r.cuisineType || '',
       email: r.email || '',
       phone: r.phone || '',
       address: r.address || '',
@@ -108,6 +107,8 @@ export const listService = {
       totalScore: r.totalScore !== undefined && r.totalScore !== null ? String(r.totalScore) : '',
       website: r.website || '',
       facebook: r.facebook || '',
+      categoryName: r.categoryName || r.cuisineType || '',
+      cuisineType: r.categoryName || r.cuisineType || '',
       source: r.source || '',
       isFlag: !!r.isFlag,
       neighborhood: r.neighborhood || '',
@@ -144,7 +145,6 @@ export const listService = {
     const cleanNewData = newData.map((item, idx) => ({
       id: `${targetProvinceName}-${Date.now()}-${idx}`,
       title: item.title || '',
-      cuisineType: item.cuisineType || '',
       email: item.email || '',
       phone: item.phone || '',
       address: item.address || '',
@@ -152,6 +152,8 @@ export const listService = {
       totalScore: item.totalScore !== undefined && item.totalScore !== null ? String(item.totalScore) : '',
       website: item.website || '',
       facebook: item.facebook || '',
+      categoryName: item.categoryName || item.cuisineType || '',
+      cuisineType: item.categoryName || item.cuisineType || '',
       source: item.source || '',
       isFlag: !!item.isFlag,
       neighborhood: item.neighborhood || ''

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import TableView from './TableView';
 import JsonPreview from './JsonPreview';
 import { toast } from 'react-toastify';
 
-export default function ResultSection({ 
-  data, 
+export default function ResultSection({
+  data,
   dataType,
-  onDeleteRow, 
+  onDeleteRow,
   onSortByScore,
   onExportExcel,
   onToggleFlag
@@ -46,15 +46,15 @@ export default function ResultSection({
       <div className="result-header">
         {/* Nút chuyển đổi Tab giữa Bảng và JSON */}
         <div className="result-tabs">
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={`tab-btn ${activeTab === 'table' ? 'active' : ''}`}
             onClick={() => setActiveTab('table')}
           >
             📊 Xem dạng bảng
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={`tab-btn ${activeTab === 'json' ? 'active' : ''}`}
             onClick={() => setActiveTab('json')}
           >
@@ -64,25 +64,25 @@ export default function ResultSection({
 
         {/* Các thao tác nâng cao trên kết quả */}
         <div className="result-actions">
-          <button 
-            type="button" 
-            className="btn btn-secondary" 
+          <button
+            type="button"
+            className="btn btn-secondary"
             onClick={onSortByScore}
             title="Ưu tiên các cơ sở có Website, Số điện thoại và Điểm đánh giá cao lên hàng đầu"
           >
             ⭐ Sắp xếp ưu tiên
           </button>
-          <button 
-            type="button" 
-            className="btn btn-secondary" 
+          <button
+            type="button"
+            className="btn btn-secondary"
             onClick={handleCopyAllJson}
             title="Sao chép toàn bộ danh sách thành mã JSON"
           >
             📋 Copy JSON
           </button>
-          <button 
-            type="button" 
-            className="btn btn-success" 
+          <button
+            type="button"
+            className="btn btn-success"
             onClick={onExportExcel}
             title="Tải tệp Excel chứa dữ liệu của bảng hiện tại"
           >
@@ -94,10 +94,10 @@ export default function ResultSection({
       {/* Hiển thị nội dung dựa trên tab đang chọn */}
       <div style={{ marginTop: '0.5rem' }}>
         {activeTab === 'table' ? (
-          <TableView 
-            data={data} 
-            dataType={dataType} 
-            onDeleteRow={onDeleteRow} 
+          <TableView
+            data={data}
+            dataType={dataType}
+            onDeleteRow={onDeleteRow}
             onToggleFlag={onToggleFlag}
           />
         ) : (

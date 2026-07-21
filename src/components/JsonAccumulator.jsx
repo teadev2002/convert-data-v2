@@ -10,17 +10,17 @@ export default function JsonAccumulator() {
     title: false,
     address: false
   });
-  
+
   // State quản lý sắp xếp ưu tiên liên hệ (Email > Website > Facebook > Phone)
   const [sortByPriority, setSortByPriority] = useState(true);
-  
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [progressText, setProgressText] = useState('');
-  
+
   const [stats, setStats] = useState(null);
   const [mergedData, setMergedData] = useState([]);
-  
+
   // Phân trang cho preview bảng
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
@@ -31,7 +31,7 @@ export default function JsonAccumulator() {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    
+
     const jsonFiles = files.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
     if (jsonFiles.length === 0) {
       toast.warn('Vui lòng chọn các tệp có định dạng .json');
@@ -43,7 +43,7 @@ export default function JsonAccumulator() {
       const newFiles = jsonFiles.filter(f => !existingNames.has(f.name));
       return [...prev, ...newFiles];
     });
-    
+
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -115,7 +115,7 @@ export default function JsonAccumulator() {
 
     return {
       title: pickValue(r1.title, r2.title),
-      cuisineType: pickValue(r1.cuisineType, r2.cuisineType),
+      categoryName: pickValue(r1.categoryName || r1.cuisineType, r2.categoryName || r2.cuisineType),
       email: pickValue(r1.email, r2.email),
       phone: pickValue(r1.phone, r2.phone),
       address: pickValue(r1.address, r2.address),
@@ -195,7 +195,7 @@ export default function JsonAccumulator() {
             } else {
               recordsMap.set(key, {
                 title: item.title || '',
-                cuisineType: item.cuisineType || '',
+                categoryName: item.categoryName || item.cuisineType || item.category_name || item.category || '',
                 email: item.email || '',
                 phone: item.phone || '',
                 address: item.address || '',
@@ -246,7 +246,7 @@ export default function JsonAccumulator() {
         });
       }
 
-      // Đánh lại số thứ tự STT bắt đầu từ 1 đến N và chuẩn hóa đầy đủ 11 field theo thứ tự mẫu
+      // Đánh lại số thứ tự STT bắt đầu từ 1 đến N và chuẩn hóa đúng thứ tự 12 field người dùng chỉ định
       const finalResult = rawList.map((rec, idx) => {
         const item = {
           stt: idx + 1,
@@ -258,13 +258,10 @@ export default function JsonAccumulator() {
           totalScore: rec.totalScore !== undefined && rec.totalScore !== null ? String(rec.totalScore) : '',
           website: rec.website || '',
           facebook: rec.facebook || '',
+          categoryName: rec.categoryName || '',
           source: rec.source || '',
           isFlag: Boolean(rec.isFlag)
         };
-
-        if (rec.cuisineType !== undefined && rec.cuisineType !== '') {
-          item.cuisineType = rec.cuisineType;
-        }
 
         return item;
       });
@@ -565,28 +562,29 @@ export default function JsonAccumulator() {
               <thead>
                 <tr>
                   <th style={{ minWidth: '50px', textAlign: 'center' }}>STT</th>
-                  <th style={{ minWidth: '220px' }}>Title (Tên địa điểm)</th>
+                  <th style={{ minWidth: '200px' }}>Title (Tên địa điểm)</th>
                   <th style={{ minWidth: '180px' }}>Email</th>
                   <th style={{ minWidth: '130px' }}>Phone</th>
-                  <th style={{ minWidth: '250px' }}>Address (Địa chỉ)</th>
-                  <th style={{ minWidth: '150px' }}>URL</th>
+                  <th style={{ minWidth: '220px' }}>Address (Địa chỉ)</th>
+                  <th style={{ minWidth: '140px' }}>URL</th>
                   <th style={{ minWidth: '90px', textAlign: 'center' }}>Total Score</th>
-                  <th style={{ minWidth: '150px' }}>Website</th>
-                  <th style={{ minWidth: '150px' }}>Facebook</th>
-                  <th style={{ minWidth: '150px' }}>Source</th>
-                  <th style={{ minWidth: '100px', textAlign: 'center' }}>isFlag</th>
+                  <th style={{ minWidth: '140px' }}>Website</th>
+                  <th style={{ minWidth: '140px' }}>Facebook</th>
+                  <th style={{ minWidth: '140px' }}>Loại hình</th>
+                  <th style={{ minWidth: '140px' }}>Source</th>
+                  <th style={{ minWidth: '90px', textAlign: 'center' }}>isFlag</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedData.map((item) => (
                   <tr key={item.stt}>
                     <td style={{ textAlign: 'center', fontWeight: 600 }}>{item.stt}</td>
-                    <td style={{ fontWeight: 600, maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.title}>
+                    <td style={{ fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.title}>
                       {item.title || '-'}
                     </td>
                     <td>{item.email || '-'}</td>
                     <td>{item.phone || '-'}</td>
-                    <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.address}>
+                    <td style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.address}>
                       {item.address || '-'}
                     </td>
                     <td>
@@ -611,6 +609,7 @@ export default function JsonAccumulator() {
                         </a>
                       ) : '-'}
                     </td>
+                    <td>{item.categoryName || item.cuisineType || '-'}</td>
                     <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.source}>
                       {item.source || '-'}
                     </td>

@@ -10,7 +10,7 @@ const FIELD_ALIASES = {
   totalScore: ['total score', 'totalscore', 'total_score', 'score', 'rating', 'diem', 'điểm', 'diem_danh_gia', 'diem_danh_gia_trung_binh'],
   website: ['website', 'web', 'trang_web', 'trangweb', 'url_website'],
   facebook: ['facebook', 'fb', 'link_facebook', 'facebook_url', 'facebook url'],
-  cuisineType: ['cuisine type', 'service type', 'cuisine_type', 'service_type', 'cuisine', 'cuisinetype', 'loai_am_thuc', 'loại ẩm thực', 'am_thuc', 'ẩm thực', 'loai_hinh_am_thuc', 'categoryname', 'category_name', 'category'],
+  cuisineType: ['categoryname', 'category_name', 'category', 'cuisine type', 'service type', 'cuisine_type', 'service_type', 'cuisine', 'cuisinetype', 'loai_am_thuc', 'loại ẩm thực', 'am_thuc', 'ẩm thực', 'loai_hinh_am_thuc', 'loại hình', 'loai_hinh'],
   email: ['email', 'mail', 'thu_dien_tu', 'thư điện tử', 'contact_email'],
   neighborhood: ['neighborhood', 'phuong', 'phường', 'phuong_xa', 'phường xã', 'khu_vuc', 'khu vực', 'sub_district', 'subdistrict', 'ward', 'phuongxa'],
   source: ['source', 'nguon', 'nguồn', 'nguon_tin', 'nguồn tin'],
@@ -28,22 +28,36 @@ function getValueByAliases(obj, aliases) {
   
   const keys = Object.keys(obj);
   
-  // 1. Tìm khớp chính xác trước (sau khi cắt khoảng trắng và đưa về viết thường)
+  // 1. Tìm khớp chính xác key alias có chứa giá trị KHÁC RỖNG trước
+  for (const alias of aliases) {
+    const exactKey = keys.find(k => k.trim().toLowerCase() === alias.toLowerCase());
+    if (exactKey !== undefined) {
+      const val = obj[exactKey];
+      if (val !== null && val !== undefined && String(val).trim() !== '') {
+        return val;
+      }
+    }
+  }
+  
+  // 2. Tìm khớp tương đối (chứa từ khóa đồng nghĩa) có chứa giá trị KHÁC RỖNG
+  for (const alias of aliases) {
+    const partialKey = keys.find(k => k.trim().toLowerCase().includes(alias.toLowerCase()));
+    if (partialKey !== undefined) {
+      const val = obj[partialKey];
+      if (val !== null && val !== undefined && String(val).trim() !== '') {
+        return val;
+      }
+    }
+  }
+
+  // 3. Fallback: Nếu tất cả các alias khớp đều rỗng, lấy giá trị của key khớp đầu tiên
   for (const alias of aliases) {
     const exactKey = keys.find(k => k.trim().toLowerCase() === alias.toLowerCase());
     if (exactKey !== undefined) {
       return obj[exactKey];
     }
   }
-  
-  // 2. Tìm khớp tương đối (chứa từ khóa đồng nghĩa)
-  for (const alias of aliases) {
-    const partialKey = keys.find(k => k.trim().toLowerCase().includes(alias.toLowerCase()));
-    if (partialKey !== undefined) {
-      return obj[partialKey];
-    }
-  }
-  
+
   return '';
 }
 
@@ -79,7 +93,7 @@ export function mapToStandardSchema(rawData) {
       if (!str) return '';
       return String(str)
         .replace(/[\r\n\t]+/g, ' ')
-        .replace(/[^\p{L}\p{N}\s,.\-\/()]/gu, '')
+        .replace(/[^\p{L}\p{N}\s,.\-()]/gu, '')
         .replace(/\s+/g, ' ')
         .trim();
     };
@@ -89,7 +103,7 @@ export function mapToStandardSchema(rawData) {
     const website = String(rawWebsite).trim();
     const facebook = String(rawFacebook).trim();
     
-    const cuisineType = String(rawCuisineType).trim();
+    const categoryName = String(rawCuisineType).trim();
     const email = rawEmail ? String(rawEmail).trim() : '';
     const neighborhood = String(rawNeighborhood).trim();
     
@@ -103,7 +117,6 @@ export function mapToStandardSchema(rawData) {
     return {
       stt: index + 1,
       title,
-      cuisineType,
       email,
       phone,
       address,
@@ -111,6 +124,8 @@ export function mapToStandardSchema(rawData) {
       totalScore,
       website,
       facebook,
+      categoryName,
+      cuisineType: categoryName,
       source: String(rawSource || '').trim(),
       isFlag: rawIsFlag === true || String(rawIsFlag).trim().toLowerCase() === 'true' || rawIsFlag === 1,
       neighborhood, // Lưu trữ nội bộ để lọc
@@ -130,7 +145,7 @@ export function parseHotelData(rawInput) {
   const trimmed = rawInput.trim();
   if (trimmed === '') return [];
 
-  let parsedRaw = [];
+  let parsedRaw;
 
   // 1. Nhận diện dạng JSON
   if (trimmed.startsWith('[') || trimmed.startsWith('{')) {

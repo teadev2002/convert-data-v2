@@ -1,6 +1,6 @@
-import React from 'react';
 
-export default function TableView({ data, dataType, onDeleteRow, onToggleFlag }) {
+
+export default function TableView({ data, onDeleteRow, onToggleFlag }) {
   if (!data || data.length === 0) {
     return (
       <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -16,7 +16,6 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
           <tr>
             <th className="col-stt">STT</th>
             <th className="col-title">Tên cơ sở</th>
-            <th className="col-cuisine" style={{ minWidth: '120px' }}>Loại hình</th>
             <th className="col-email">Email</th>
             <th className="col-phone">Số điện thoại</th>
             <th className="col-address">Địa chỉ</th>
@@ -24,6 +23,7 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
             <th className="col-score">Điểm số</th>
             <th className="col-website">Website</th>
             <th className="col-facebook">Facebook</th>
+            <th className="col-cuisine" style={{ minWidth: '130px' }}>Loại hình</th>
             <th className="col-source">Nguồn tin</th>
             <th className="col-isflag" style={{ width: '80px', textAlign: 'center' }}>Đánh dấu</th>
             <th style={{ width: '60px', textAlign: 'center' }}>Xóa</th>
@@ -34,14 +34,14 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
             <tr key={index} className={row.isDuplicate ? 'duplicate-row' : ''}>
               {/* Số thứ tự tính toán động trong React */}
               <td className="col-stt">{index + 1}</td>
-              
+
               {/* Tên cơ sở có kèm badge báo trùng lặp nếu trùng */}
               <td className="col-title">
                 {row.title || <span className="empty-text">Không có tên</span>}
                 {row.isDuplicate && (
-                  <span 
-                    className="badge-duplicate" 
-                    style={{ 
+                  <span
+                    className="badge-duplicate"
+                    style={{
                       marginLeft: '0.5rem',
                       backgroundColor: row.duplicateSource === 'file' ? '#e67e22' : 'var(--danger)',
                       color: '#fff',
@@ -60,11 +60,6 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
                 )}
               </td>
 
-              {/* Loại hình */}
-              <td className="col-cuisine" style={{ fontStyle: 'italic' }}>
-                {row.cuisineType || <span className="empty-text">-</span>}
-              </td>
-
               {/* Cột email */}
               <td className="col-email">
                 {row.email || <span className="empty-text">-</span>}
@@ -74,19 +69,19 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
               <td className="col-phone">
                 {row.phone || <span className="empty-text">-</span>}
               </td>
-              
+
               {/* Cột địa chỉ */}
               <td className="col-address">
                 {row.address || <span className="empty-text">Không có địa chỉ</span>}
               </td>
-              
+
               {/* Đường dẫn bản đồ Google Maps */}
               <td className="col-url">
                 {row.url ? (
-                  <a 
-                    href={row.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                  <a
+                    href={row.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="external-link"
                     title={row.url}
                   >
@@ -101,14 +96,14 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
               <td className="col-score" style={{ fontWeight: 600 }}>
                 {row.totalScore || <span className="empty-text">-</span>}
               </td>
-              
+
               {/* Đường dẫn website khách sạn */}
               <td className="col-website">
                 {row.website ? (
-                  <a 
-                    href={row.website.startsWith('http') ? row.website : `http://${row.website}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                  <a
+                    href={row.website.startsWith('http') ? row.website : `http://${row.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="external-link"
                     title={row.website}
                   >
@@ -122,10 +117,10 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
               {/* Đường dẫn Facebook */}
               <td className="col-facebook">
                 {row.facebook ? (
-                  <a 
-                    href={row.facebook.startsWith('http') ? row.facebook : `https://${row.facebook}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                  <a
+                    href={row.facebook.startsWith('http') ? row.facebook : `https://${row.facebook}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="external-link"
                     title={row.facebook}
                   >
@@ -134,6 +129,11 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
                 ) : (
                   <span className="empty-text">-</span>
                 )}
+              </td>
+
+              {/* Loại hình (categoryName) */}
+              <td className="col-cuisine" style={{ fontStyle: 'italic' }}>
+                {row.categoryName || row.cuisineType || <span className="empty-text">-</span>}
               </td>
 
               {/* Nguồn tin */}
@@ -150,7 +150,7 @@ export default function TableView({ data, dataType, onDeleteRow, onToggleFlag })
                   style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                 />
               </td>
-              
+
               {/* Nút hành động xóa hàng thủ công */}
               <td style={{ textAlign: 'center' }}>
                 <button

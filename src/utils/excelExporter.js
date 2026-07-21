@@ -10,7 +10,7 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
   if (!Array.isArray(data) || data.length === 0) return;
 
   const hasExtraCol = dataType === 'restaurants' || dataType === 'spa';
-
+console.log(`Exporting ${data.length} records to Excel. Extra column: ${hasExtraCol}`);
   // 1. Sao chép và định dạng lại các cột theo chuẩn
   const formattedData = data.map((item, index) => {
     let phoneStr = item.phone || '';
@@ -23,7 +23,6 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
     return {
       'STT': index + 1,
       'Title': item.title || '',
-      'Cuisine/Service Type': item.cuisineType || '',
       'Email': item.email || '',
       'Phone': phoneStr,
       'Address': item.address || '',
@@ -31,6 +30,7 @@ export function exportToExcel(data, fileName = 'hotels_data.xlsx', dataType = 'h
       'Total Score': item.totalScore !== undefined && item.totalScore !== null ? String(item.totalScore) : '',
       'Website': item.website || '',
       'Facebook': item.facebook || '',
+      'Category Name': item.categoryName || item.cuisineType || '',
       'Source': item.source || '',
       'Is Flag': item.isFlag ? 'TRUE' : 'FALSE'
     };
