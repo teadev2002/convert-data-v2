@@ -746,6 +746,13 @@ function App() {
   const handleSortByScore = () => {
     if (currentData.length === 0) return;
 
+    const extractStarRating = (val) => {
+      if (!val) return 0;
+      const str = String(val).toLowerCase();
+      const match = str.match(/(\d+)\s*[-_]?\s*(?:star|sao|\*)/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+
     const sorted = [...currentData].sort((a, b) => {
       // 1. Ưu tiên có Email lên hàng đầu
       const hasEmailA = a.email && a.email.trim() !== '' ? 1 : 0;
@@ -761,14 +768,21 @@ function App() {
         return hasWebB - hasWebA;
       }
 
-      // 3. Đi kèm với Phone (có Phone lên trước)
+      // 3. Ưu tiên số sao giảm dần từ categoryName (5-star > 4-star > 3-star...)
+      const starA = extractStarRating(a.categoryName || a.cuisineType);
+      const starB = extractStarRating(b.categoryName || b.cuisineType);
+      if (starA !== starB) {
+        return starB - starA;
+      }
+
+      // 4. Ưu tiên có Phone tiếp theo
       const hasPhoneA = a.phone && a.phone.trim() !== '' ? 1 : 0;
       const hasPhoneB = b.phone && b.phone.trim() !== '' ? 1 : 0;
       if (hasPhoneA !== hasPhoneB) {
         return hasPhoneB - hasPhoneA;
       }
 
-      // 4. Đi kèm với Điểm đánh giá (Total Score) giảm dần
+      // 5. Đi kèm với Điểm đánh giá (Total Score) giảm dần
       const scoreA = parseFloat(a.totalScore);
       const scoreB = parseFloat(b.totalScore);
       const hasScoreA = !isNaN(scoreA);
@@ -789,7 +803,7 @@ function App() {
     }));
 
     setCurrentData(reindexedData);
-    toast.success('Đã sắp xếp danh sách ưu tiên (Email -> Website -> Số điện thoại -> Điểm số)!');
+    toast.success('Đã sắp xếp danh sách ưu tiên (Email -> Website -> Số sao 5★-1★ -> Phone -> Điểm số)!');
   };
 
   // --- Xuất tệp Excel chứa dữ liệu hiện tại ---

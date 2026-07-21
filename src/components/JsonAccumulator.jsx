@@ -115,7 +115,6 @@ export default function JsonAccumulator() {
 
     return {
       title: pickValue(r1.title, r2.title),
-      categoryName: pickValue(r1.categoryName || r1.cuisineType, r2.categoryName || r2.cuisineType),
       email: pickValue(r1.email, r2.email),
       phone: pickValue(r1.phone, r2.phone),
       address: pickValue(r1.address, r2.address),
@@ -123,6 +122,7 @@ export default function JsonAccumulator() {
       totalScore: pickValue(r1.totalScore, r2.totalScore),
       website: pickValue(r1.website, r2.website),
       facebook: pickValue(r1.facebook, r2.facebook),
+      categoryName: pickValue(r1.categoryName || r1.cuisineType, r2.categoryName || r2.cuisineType),
       source: pickValue(r1.source, r2.source),
       isFlag: Boolean(r1.isFlag || r2.isFlag)
     };
@@ -195,7 +195,6 @@ export default function JsonAccumulator() {
             } else {
               recordsMap.set(key, {
                 title: item.title || '',
-                categoryName: item.categoryName || item.cuisineType || item.category_name || item.category || '',
                 email: item.email || '',
                 phone: item.phone || '',
                 address: item.address || '',
@@ -203,6 +202,7 @@ export default function JsonAccumulator() {
                 totalScore: item.totalScore !== undefined && item.totalScore !== null ? String(item.totalScore) : '',
                 website: item.website || '',
                 facebook: item.facebook || '',
+                categoryName: item.categoryName || item.cuisineType || item.category_name || item.category || '',
                 source: item.source || '',
                 isFlag: !!item.isFlag
               });
@@ -220,6 +220,14 @@ export default function JsonAccumulator() {
       setProgressPercent(95);
       await new Promise(r => setTimeout(r, 50));
 
+      // Hàm trích xuất số sao từ categoryName (ví dụ "5-star hotel" -> 5, "Khách sạn 4 sao" -> 4)
+      const extractStarRating = (val) => {
+        if (!val) return 0;
+        const str = String(val).toLowerCase();
+        const match = str.match(/(\d+)\s*[-_]?\s*(?:star|sao|\*)/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+
       // Hàm tính điểm ưu tiên thông tin liên hệ (Email > Website > Facebook > Phone)
       const getPriorityScore = (rec) => {
         const hasVal = (v) => String(v || '').trim() !== '';
@@ -233,15 +241,24 @@ export default function JsonAccumulator() {
 
       let rawList = Array.from(recordsMap.values());
 
-      // Thực hiện sắp xếp ưu tiên theo Email > Website > Facebook > Phone nếu kích hoạt
+      // Thực hiện sắp xếp ưu tiên liên hệ kết hợp Số sao (categoryName) giảm dần
       if (sortByPriority) {
         rawList.sort((a, b) => {
+          // 1. So sánh điểm ưu tiên thông tin liên hệ
           const scoreA = getPriorityScore(a);
           const scoreB = getPriorityScore(b);
           if (scoreB !== scoreA) {
-            return scoreB - scoreA; // Điểm cao hơn xếp trước
+            return scoreB - scoreA; // Điểm liên hệ cao hơn xếp trước
           }
-          // Nếu bằng điểm liên hệ, sắp xếp theo tên địa điểm tăng dần
+
+          // 2. So sánh số sao từ categoryName giảm dần (5-star > 4-star > 3-star...)
+          const starA = extractStarRating(a.categoryName || a.cuisineType);
+          const starB = extractStarRating(b.categoryName || b.cuisineType);
+          if (starB !== starA) {
+            return starB - starA; // Số sao nhiều hơn xếp trước
+          }
+
+          // 3. Nếu bằng điểm liên hệ và bằng số sao, sắp xếp theo tên địa điểm từ A-Z
           return String(a.title || '').localeCompare(String(b.title || ''));
         });
       }
@@ -457,7 +474,7 @@ export default function JsonAccumulator() {
               onChange={(e) => setSortByPriority(e.target.checked)}
               disabled={isProcessing}
             />
-            <span>⭐ Sắp xếp ưu tiên thông tin liên hệ (Email &gt; Website &gt; Facebook &gt; Phone)</span>
+            <span>⭐ Sắp xếp ưu tiên liên hệ &amp; Số sao giảm dần (Email &gt; Website &gt; Số sao [5-star &gt; 4-star...] &gt; Facebook &gt; Phone)</span>
           </label>
         </div>
       </div>

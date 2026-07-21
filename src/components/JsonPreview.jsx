@@ -10,11 +10,11 @@ export default function JsonPreview({ data, dataType }) {
       email: item.email || '',
       phone: item.phone || '',
       address: item.address || '',
-      categoryName: item.categoryName || item.cuisineType || '',
       url: item.url || '',
       totalScore: item.totalScore || '',
       website: item.website || '',
       facebook: item.facebook || '',
+      categoryName: item.categoryName || item.cuisineType || '',
       source: item.source || '',
       isFlag: !!item.isFlag
     };
