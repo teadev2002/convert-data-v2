@@ -12,6 +12,7 @@ import ResultSection from './components/ResultSection.jsx';
 import SaveModal from './components/SaveModal.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import MergeFile from './components/MergeFile.jsx';
+import JsonAccumulator from './components/JsonAccumulator.jsx';
 
 // Import các dịch vụ API & tiện ích
 import { listService } from './services/listService.js';
@@ -851,6 +852,8 @@ function App() {
 
       {currentRoute === '/merge-file' ? (
         <MergeFile isDark={isDarkTheme} setIsLoading={setIsLoading} />
+      ) : currentRoute === '/json-accumulator' ? (
+        <JsonAccumulator />
       ) : (
         <>
           {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}

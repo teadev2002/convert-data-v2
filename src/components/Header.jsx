@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 export default function Header({ isDark, onToggleTheme, currentRoute, onNavigate }) {
   return (
@@ -8,23 +8,48 @@ export default function Header({ isDark, onToggleTheme, currentRoute, onNavigate
         <h1> Data Processor & Manager made by TheAnh</h1>
       </div>
       <div className="header-actions">
-        {currentRoute === '/merge-file' ? (
-          <button 
-            onClick={() => onNavigate('/')} 
-            className="theme-toggle-btn"
-            style={{ fontSize: '0.9rem', padding: '0.4rem 0.8rem', borderRadius: '8px', cursor: 'pointer' }}
-          >
-            🏠 Trang chủ
-          </button>
-        ) : (
-          <button 
-            onClick={() => onNavigate('/merge-file')} 
-            className="theme-toggle-btn"
-            style={{ fontSize: '0.9rem', padding: '0.4rem 0.8rem', borderRadius: '8px', cursor: 'pointer' }}
-          >
-            🔀 Hợp nhất file
-          </button>
-        )}
+        <button
+          onClick={() => onNavigate('/')}
+          className="theme-toggle-btn"
+          style={{
+            fontSize: '0.9rem',
+            padding: '0.4rem 0.8rem',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            background: currentRoute === '/' ? 'var(--primary)' : undefined,
+            color: currentRoute === '/' ? '#fff' : undefined
+          }}
+        >
+          🏠 Trang chủ
+        </button>
+        <button
+          onClick={() => onNavigate('/merge-file')}
+          className="theme-toggle-btn"
+          style={{
+            fontSize: '0.9rem',
+            padding: '0.4rem 0.8rem',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            background: currentRoute === '/merge-file' ? 'var(--primary)' : undefined,
+            color: currentRoute === '/merge-file' ? '#fff' : undefined
+          }}
+        >
+          🔀 Hợp nhất file
+        </button>
+        <button
+          onClick={() => onNavigate('/json-accumulator')}
+          className="theme-toggle-btn"
+          style={{
+            fontSize: '0.9rem',
+            padding: '0.4rem 0.8rem',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            background: currentRoute === '/json-accumulator' ? 'var(--primary)' : undefined,
+            color: currentRoute === '/json-accumulator' ? '#fff' : undefined
+          }}
+        >
+          🧩 Cộng dồn JSON
+        </button>
         <button
           onClick={onToggleTheme}
           className="theme-toggle-btn"
