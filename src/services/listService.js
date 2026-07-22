@@ -133,7 +133,7 @@ export const listService = {
    * @param {Object} dupFields - Các trường lọc trùng đang chọn
    * @returns {Promise<Object>} - Trả về tóm tắt tỉnh thành sau khi lưu { id, name, count }
    */
-  async save(provinceName, newData, dataType = 'hotels', activeListId = '', dupFields = { url: true, address: true, phone: true, title: true }) {
+  async save(provinceName, newData, provinceId = null, dataType = 'hotels', activeListId = '', dupFields = { url: true, address: true, phone: true, title: true }) {
     const targetProvinceName = String(provinceName || '').trim();
     if (!targetProvinceName) {
       throw new Error('Tên tỉnh thành không được để trống.');
