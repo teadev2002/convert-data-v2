@@ -621,22 +621,15 @@ function App() {
 
     setIsLoading(true);
     try {
-      const savedList = await listService.save(provinceName, currentData, selectedId, dataType, activeListId, dupFields);
+      // Tiến hành lưu/gộp dữ liệu
+      await listService.save(provinceName, currentData, selectedId, dataType, activeListId, dupFields);
       const displayType = dataType === 'hotels' ? 'khách sạn' : dataType === 'restaurants' ? 'nhà hàng' : 'spa';
-
-      // Tải lại dữ liệu đã gộp đầy đủ từ kho lưu trữ để cập nhật lên giao diện
-      const updatedList = await listService.getById(savedList.id, dataType);
-      if (updatedList && updatedList.data) {
-        setCurrentData(updatedList.data);
-      }
 
       toast.success(`Đã lưu trữ thành công dữ liệu ${displayType} vào tỉnh "${provinceName}" trên Local Storage.`);
       setIsSaveModalOpen(false);
 
-      // Cập nhật lại dropdown danh sách
+      // Cập nhật lại danh mục dropdown có sẵn (số lượng đếm mới)
       await loadSavedLists();
-      setSelectedListId(savedList.id);
-      setActiveListId(savedList.id);
       setLastSavedTime(Date.now());
     } catch (err) {
       toast.error(`Không thể lưu dữ liệu: ${err.message}`);
