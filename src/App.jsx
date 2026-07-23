@@ -127,7 +127,7 @@ function App() {
   const [rawInput, setRawInput] = useState(''); // Lưu nội dung nhập liệu hoặc kéo thả thô
   const [currentData, setCurrentData] = useState([]); // Dữ liệu đang trực quan hóa (sau khi sắp xếp, lọc...)
   const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Local Storage (provinces)
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState(''); // Bộ lọc Phường / Xã đang chọn
+  const [filterHotelKeywords, setFilterHotelKeywords] = useState(false); // Bộ lọc từ khóa Khách sạn (Hotels)
   const [addressFilterText, setAddressFilterText] = useState(''); // Chuỗi tìm kiếm địa chỉ đang chọn
 
   const [selectedListId, setSelectedListId] = useState(''); // ID tỉnh thành đang chọn ở dropdown
@@ -177,7 +177,8 @@ function App() {
   const [lastSavedTime, setLastSavedTime] = useState(0); // Trigger để tính toán lại hasUnsavedData sau khi lưu/xóa
 
   // --- Các hàm hỗ trợ dùng useCallback để tránh vấn đề hoisting/đệ quy ---
-  // --- Lấy danh mục các tỉnh thành từ Local Storage ---
+
+
   const loadSavedLists = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -367,16 +368,11 @@ function App() {
   }, [dataType, loadSavedLists]);
 
   // --- Kiểm tra và chuyển đổi Tab loại hình dịch vụ ---
-  const handleTabChange = (newType) => {
-    if (newType === dataType) return;
-    setDataType(newType);
-
-    // Reset toàn bộ trạng thái dữ liệu cũ khi đổi tab (thực hiện đồng bộ trong Event Handler)
-    setSelectedListId('');
-    setActiveListId('');
-    setCurrentData([]);
+  const handleTabChange = (type) => {
+    setDataType(type);
     setRawInput('');
-    setSelectedNeighborhood('');
+    setCurrentData([]);
+    setFilterHotelKeywords(false);
     setAddressFilterText('');
     setIsAlertDismissed(false);
     setCustomErrorAlert(null);
@@ -385,7 +381,7 @@ function App() {
   // --- Xử lý nạp văn bản thô (khi dán hoặc kéo thả tệp) ---
   const handleRawInputLoad = (text) => {
     setRawInput(text);
-    setSelectedNeighborhood('');
+    setFilterHotelKeywords(false);
     // Tự động kích hoạt tiền xử lý sau khi nạp tệp thành công
     setTimeout(() => {
       try {
@@ -407,7 +403,7 @@ function App() {
       toast.warn('Vui lòng dán JSON/CSV hoặc kéo thả tệp trước khi xử lý.');
       return;
     }
-    setSelectedNeighborhood('');
+    setFilterHotelKeywords(false);
     try {
       const parsed = parseHotelData(rawInput);
       if (parsed.length === 0) {
@@ -551,7 +547,7 @@ function App() {
   const handleLoadSavedList = async () => {
     if (!selectedListId) return;
     setIsLoading(true);
-    setSelectedNeighborhood('');
+    setFilterHotelKeywords(false);
     try {
       const list = await listService.getById(selectedListId, dataType);
       if (list) {
@@ -596,7 +592,7 @@ function App() {
             setActiveListId('');
             setCurrentData([]);
             setRawInput('');
-            setSelectedNeighborhood('');
+            setFilterHotelKeywords(false);
           }
 
           setSelectedListId('');
@@ -824,29 +820,33 @@ function App() {
     }
   };
 
-  // Lọc và tính toán danh sách Phường / Xã duy nhất cho dropdown
-  const getNeighborhoodOptions = () => {
-    const neighborhoods = new Set();
-    currentData.forEach(item => {
-      if (item.neighborhood && item.neighborhood.trim() !== '') {
-        neighborhoods.add(item.neighborhood.trim());
-      }
-    });
-    return Array.from(neighborhoods).sort((a, b) => a.localeCompare(b));
-  };
-
-  // Dữ liệu được hiển thị sau khi qua bộ lọc Phường/Xã và lọc Địa chỉ
+  // Dữ liệu được hiển thị sau khi qua bộ lọc Địa chỉ và lọc từ khóa Khách sạn
   const getDisplayedData = () => {
     let data = currentData;
 
-    // 1. Lọc theo Phường / Xã
-    if (selectedNeighborhood) {
-      data = data.filter(item => item.neighborhood && item.neighborhood.trim() === selectedNeighborhood);
-    }
-
-    // 2. Lọc theo Địa chỉ (thông minh, hỗ trợ từ khóa đồng nghĩa tỉnh thành)
+    // 1. Lọc theo Địa chỉ (thông minh, hỗ trợ từ khóa đồng nghĩa tỉnh thành)
     if (addressFilterText.trim()) {
       data = data.filter(item => matchAddressWithSynonyms(item.address, addressFilterText));
+    }
+
+    // 2. Lọc theo tên từ khóa khách sạn (chỉ áp dụng đối với tab hotels và khi bật tùy chọn)
+    if (dataType === 'hotels' && filterHotelKeywords) {
+      const hotelKeywords = [
+        "hotel", "motel", "hostel",
+        "khach san", "khách sạn",
+        "nha nghi", "nhà nghỉ",
+        "homestay", "home stay", "House",
+        "boutique",
+        "condotel",
+        "phòng nghỉ", "phong nghi",
+        "lưu trú", "luu tru",
+        "Villa"
+      ];
+      data = data.filter(item => {
+        if (!item.title) return false;
+        const titleLower = item.title.toLowerCase();
+        return hotelKeywords.some(kw => titleLower.includes(kw.toLowerCase()));
+      });
     }
 
     return data;
@@ -1003,23 +1003,29 @@ function App() {
               backgroundColor: 'var(--bg-card)',
               flexWrap: 'wrap'
             }}>
-              {/* Dropdown lọc Phường / Xã */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '220px' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-                  📍 Phường / Xã:
-                </label>
-                <select
-                  className="form-select"
-                  value={selectedNeighborhood}
-                  onChange={(e) => setSelectedNeighborhood(e.target.value)}
-                  style={{ minWidth: '160px', margin: 0, padding: '0.375rem 1.75rem 0.375rem 0.75rem' }}
-                >
-                  <option value="">-- Tất cả Phường / Xã --</option>
-                  {getNeighborhoodOptions().map(n => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Checkbox lọc từ khóa khách sạn (Chỉ hiển thị cho Hotels) */}
+              {dataType === 'hotels' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: '220px' }}>
+                  <label style={{ 
+                    fontSize: '0.875rem', 
+                    fontWeight: 600, 
+                    color: 'var(--text-main)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem', 
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={filterHotelKeywords}
+                      onChange={(e) => setFilterHotelKeywords(e.target.checked)}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                    🏨 Chỉ hiện từ khóa Khách sạn
+                  </label>
+                </div>
+              )}
 
               {/* Ô nhập lọc theo địa chỉ */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1, minWidth: '280px' }}>
