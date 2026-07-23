@@ -802,6 +802,52 @@ function App() {
     toast.success('Đã sắp xếp danh sách ưu tiên (Email -> Website -> Số sao 5★-1★ -> Phone -> Điểm số)!');
   };
 
+  // --- Sắp xếp ưu tiên: Có Số điện thoại & Xếp hạng sao (5★ -> 1★) ---
+  const handleSortByPhoneAndStars = () => {
+    if (currentData.length === 0) return;
+
+    const extractStarRating = (val) => {
+      if (!val) return 0;
+      const str = String(val).toLowerCase();
+      const match = str.match(/(\d+)\s*[-_]?\s*(?:star|sao|\*)/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+
+    const getSortGroup = (rec) => {
+      const hasPhone = rec.phone && rec.phone.trim() !== '' ? 1 : 0;
+      const starRating = extractStarRating(rec.categoryName || rec.cuisineType);
+      const hasStar = starRating > 0 ? 1 : 0;
+      const hasCategory = rec.categoryName && rec.categoryName.trim() !== '' ? 1 : 0;
+
+      if (hasPhone && hasStar) return { group: 4, star: starRating };
+      if (!hasPhone && hasStar) return { group: 3, star: starRating };
+      if (hasPhone && hasCategory) return { group: 2, star: 0 };
+      if (hasPhone) return { group: 1, star: 0 };
+      return { group: 0, star: 0 };
+    };
+
+    const sorted = [...currentData].sort((a, b) => {
+      const groupA = getSortGroup(a);
+      const groupB = getSortGroup(b);
+
+      if (groupA.group !== groupB.group) {
+        return groupB.group - groupA.group; // Nhóm cao hơn xếp trước
+      }
+      if (groupA.star !== groupB.star) {
+        return groupB.star - groupA.star; // Sao nhiều hơn xếp trước (giảm dần)
+      }
+      return String(a.title || '').localeCompare(String(b.title || ''));
+    });
+
+    const reindexedData = sorted.map((item, idx) => ({
+      ...item,
+      stt: idx + 1
+    }));
+
+    setCurrentData(reindexedData);
+    toast.success('Đã sắp xếp ưu tiên (SĐT + Xếp hạng sao 5★-1★ giảm dần)!');
+  };
+
   // --- Xuất tệp Excel chứa dữ liệu hiện tại ---
   const handleExportExcel = () => {
     if (displayedData.length === 0) return;
@@ -1099,6 +1145,7 @@ function App() {
             dataType={dataType}
             onDeleteRow={handleDeleteRow}
             onSortByScore={handleSortByScore}
+            onSortByPhoneAndStars={handleSortByPhoneAndStars}
             onExportExcel={handleExportExcel}
             onToggleFlag={handleToggleFlag}
           />

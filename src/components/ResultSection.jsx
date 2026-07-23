@@ -8,6 +8,7 @@ export default function ResultSection({
   dataType,
   onDeleteRow,
   onSortByScore,
+  onSortByPhoneAndStars,
   onExportExcel,
   onToggleFlag
 }) {
@@ -27,6 +28,7 @@ export default function ResultSection({
           totalScore: item.totalScore || '',
           website: item.website || '',
           facebook: item.facebook || '',
+          categoryName: item.categoryName || item.cuisineType || '',
           source: item.source || '',
           isFlag: !!item.isFlag
         };
@@ -63,7 +65,7 @@ export default function ResultSection({
         </div>
 
         {/* Các thao tác nâng cao trên kết quả */}
-        <div className="result-actions">
+        <div className="result-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             className="btn btn-secondary"
@@ -71,6 +73,14 @@ export default function ResultSection({
             title="Ưu tiên các cơ sở có Website, Số điện thoại và Điểm đánh giá cao lên hàng đầu"
           >
             ⭐ Sắp xếp ưu tiên
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onSortByPhoneAndStars}
+            title="Ưu tiên Số điện thoại & Xếp hạng sao (5-star -> 1-star) giảm dần"
+          >
+            ⚡ Sắp xếp SĐT &amp; Sao
           </button>
           <button
             type="button"
