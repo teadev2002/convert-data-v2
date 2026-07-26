@@ -23,12 +23,24 @@ export default function JsonPreview({ data, dataType }) {
 
   const jsonString = JSON.stringify(cleanJsonData, null, 2);
 
-  const handleCopy = () => {
+  const handleDownload = () => {
     try {
-      navigator.clipboard.writeText(jsonString);
-      toast.success('Đã sao chép dữ liệu JSON vào bộ nhớ đệm (Clipboard)!');
+      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = dataType === 'hotels' 
+        ? 'hotels_filtered.json' 
+        : dataType === 'restaurants' 
+          ? 'restaurants_filtered.json' 
+          : 'spa_filtered.json';
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Đã tải xuống tệp tin "${fileName}" thành công!`);
     } catch (err) {
-      toast.error('Không thể sao chép tự động: ' + err);
+      toast.error('Không thể tải tệp JSON: ' + err);
     }
   };
 
@@ -38,10 +50,10 @@ export default function JsonPreview({ data, dataType }) {
         <button 
           type="button" 
           className="btn btn-secondary" 
-          onClick={handleCopy}
-          title="Sao chép toàn bộ chuỗi JSON bên dưới"
+          onClick={handleDownload}
+          title="Tải xuống toàn bộ chuỗi JSON bên dưới thành tệp tin"
         >
-          📋 Sao chép JSON
+          📥 Tải xuống JSON
         </button>
       </div>
       <div className="json-preview-container">

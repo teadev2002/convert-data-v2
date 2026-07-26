@@ -1132,9 +1132,24 @@ function App() {
                 </div>
               )}
 
-              {/* Thông tin đếm số dòng hiển thị */}
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                Đang hiển thị: <strong>{displayedData.length}</strong> trên tổng số <strong>{currentData.length}</strong> bản ghi
+              {/* Thông tin đếm số dòng hiển thị & thống kê email */}
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginLeft: 'auto', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span>
+                  Đang hiển thị: <strong style={{ color: 'var(--text-main)' }}>{displayedData.length}</strong> trên tổng số <strong>{currentData.length}</strong> bản ghi
+                </span>
+                <span style={{ 
+                  padding: '0.2rem 0.6rem', 
+                  borderRadius: '6px', 
+                  backgroundColor: 'rgba(0, 184, 148, 0.15)', 
+                  color: '#00b894', 
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}>
+                  ✉️ {displayedData.filter(item => item.email && item.email.trim() !== '').length} Email
+                </span>
               </span>
             </div>
           )}
