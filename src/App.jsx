@@ -889,9 +889,17 @@ function App() {
         "Villa"
       ];
       data = data.filter(item => {
-        if (!item.title) return false;
-        const titleLower = item.title.toLowerCase();
-        return hotelKeywords.some(kw => titleLower.includes(kw.toLowerCase()));
+        const titleLower = String(item.title || '').toLowerCase();
+        const categoryLower = String(item.categoryName || item.cuisineType || '').toLowerCase();
+
+        // 1. Khớp theo từ khóa trong Tên cơ sở (title)
+        const matchesTitle = hotelKeywords.some(kw => titleLower.includes(kw.toLowerCase()));
+
+        // 2. Khớp theo từ khóa phân loại cốt lõi trong Phân loại (categoryName)
+        const categoryKeywords = ["hotel", "motel", "homestay"];
+        const matchesCategory = categoryKeywords.some(kw => categoryLower.includes(kw.toLowerCase()));
+
+        return matchesTitle || matchesCategory;
       });
     }
 
