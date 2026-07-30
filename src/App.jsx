@@ -806,6 +806,25 @@ function App() {
   const handleSortByPhoneAndStars = () => {
     if (currentData.length === 0) return;
 
+    // Hàm nhận diện đầu số Viettel (bao gồm làm sạch mã quốc gia +84 và nhãn "(viettel) " cũ)
+    const checkIsViettel = (phoneStr) => {
+      if (!phoneStr) return false;
+      let cleanStr = String(phoneStr).replace(/^\(viettel\)\s*/i, '');
+      let cleaned = cleanStr.replace(/[^\d+]/g, '');
+      if (cleaned.startsWith('+84')) {
+        cleaned = '0' + cleaned.substring(3);
+      } else if (cleaned.startsWith('84') && cleaned.length > 9) {
+        cleaned = '0' + cleaned.substring(2);
+      }
+      
+      const viettelPrefixes = [
+        "086", "096", "097", "098", "032", "033", "034", "035", "036", "037", "038", "039",
+        "0282", "0286", "0242", "0246"
+      ];
+      
+      return viettelPrefixes.some(prefix => cleaned.startsWith(prefix));
+    };
+
     const extractStarRating = (val) => {
       if (!val) return 0;
       const str = String(val).toLowerCase();
@@ -813,28 +832,71 @@ function App() {
       return match ? parseInt(match[1], 10) : 0;
     };
 
-    const getSortGroup = (rec) => {
-      const hasPhone = rec.phone && rec.phone.trim() !== '' ? 1 : 0;
-      const starRating = extractStarRating(rec.categoryName || rec.cuisineType);
-      const hasStar = starRating > 0 ? 1 : 0;
-      const hasCategory = rec.categoryName && rec.categoryName.trim() !== '' ? 1 : 0;
+    // 1. Duyệt qua dữ liệu hiện tại, gắn nhãn "(viettel) " trước các số điện thoại Viettel nếu chưa có
+    const processedData = currentData.map(item => {
+      const isViettel = checkIsViettel(item.phone);
+      if (isViettel) {
+        const phoneValue = String(item.phone || '').trim();
+        if (!phoneValue.toLowerCase().startsWith('(viettel)')) {
+          return {
+            ...item,
+            phone: `(viettel) ${phoneValue}`
+          };
+        }
+      }
+      return item;
+    });
 
-      if (hasPhone && hasStar) return { group: 4, star: starRating };
-      if (!hasPhone && hasStar) return { group: 3, star: starRating };
-      if (hasPhone && hasCategory) return { group: 2, star: 0 };
-      if (hasPhone) return { group: 1, star: 0 };
-      return { group: 0, star: 0 };
+    const getPhoneType = (rec) => {
+      const hasPhone = rec.phone && rec.phone.trim() !== '' ? 1 : 0;
+      if (!hasPhone) return 0;
+      const isViettel = rec.phone && String(rec.phone).toLowerCase().startsWith('(viettel)') ? 1 : 0;
+      return isViettel ? 2 : 1; // 2: Viettel, 1: Khác, 0: Không có
     };
 
-    const sorted = [...currentData].sort((a, b) => {
-      const groupA = getSortGroup(a);
-      const groupB = getSortGroup(b);
+    const getNonStarredGroup = (rec) => {
+      const phoneType = getPhoneType(rec);
+      const hasCategory = rec.categoryName && rec.categoryName.trim() !== '' ? 1 : 0;
 
-      if (groupA.group !== groupB.group) {
-        return groupB.group - groupA.group; // Nhóm cao hơn xếp trước
+      if (phoneType === 2 && hasCategory) return 5;
+      if (phoneType === 1 && hasCategory) return 4;
+      if (phoneType === 2) return 3;
+      if (phoneType === 1) return 2;
+      return 0;
+    };
+
+    const sorted = [...processedData].sort((a, b) => {
+      const starA = extractStarRating(a.categoryName || a.cuisineType);
+      const starB = extractStarRating(b.categoryName || b.cuisineType);
+
+      const hasStarA = starA > 0;
+      const hasStarB = starB > 0;
+
+      // 1. So sánh sự hiện diện của Sao (có sao xếp trước không sao)
+      if (hasStarA !== hasStarB) {
+        return hasStarA ? -1 : 1;
       }
-      if (groupA.star !== groupB.star) {
-        return groupB.star - groupA.star; // Sao nhiều hơn xếp trước (giảm dần)
+
+      // 2. Nếu cả 2 đều có sao, so sánh số sao giảm dần (5★ -> 1★)
+      if (hasStarA && hasStarB) {
+        if (starA !== starB) {
+          return starB - starA;
+        }
+        // Nếu cùng số sao, so sánh loại số điện thoại: Viettel (2) > Khác (1) > Không có (0)
+        const phoneTypeA = getPhoneType(a);
+        const phoneTypeB = getPhoneType(b);
+        if (phoneTypeA !== phoneTypeB) {
+          return phoneTypeB - phoneTypeA;
+        }
+        // Nếu cùng loại số điện thoại, so sánh Title A-Z
+        return String(a.title || '').localeCompare(String(b.title || ''));
+      }
+
+      // 3. Nếu cả 2 đều không có sao, so sánh theo nhóm phân cấp không sao
+      const groupA = getNonStarredGroup(a);
+      const groupB = getNonStarredGroup(b);
+      if (groupA !== groupB) {
+        return groupB - groupA;
       }
       return String(a.title || '').localeCompare(String(b.title || ''));
     });
@@ -845,7 +907,8 @@ function App() {
     }));
 
     setCurrentData(reindexedData);
-    toast.success('Đã sắp xếp ưu tiên (SĐT + Xếp hạng sao 5★-1★ giảm dần)!');
+    setRawInput(JSON.stringify(reindexedData, null, 2));
+    toast.success('Đã sắp xếp ưu tiên (Số sao giảm dần & SĐT Viettel đứng đầu nhóm sao)!');
   };
 
   // --- Xuất tệp Excel chứa dữ liệu hiện tại ---
