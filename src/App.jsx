@@ -816,12 +816,12 @@ function App() {
       } else if (cleaned.startsWith('84') && cleaned.length > 9) {
         cleaned = '0' + cleaned.substring(2);
       }
-      
+
       const viettelPrefixes = [
         "086", "096", "097", "098", "032", "033", "034", "035", "036", "037", "038", "039",
         "0282", "0286", "0242", "0246"
       ];
-      
+
       return viettelPrefixes.some(prefix => cleaned.startsWith(prefix));
     };
 
@@ -944,12 +944,11 @@ function App() {
         "hotel", "motel", "hostel",
         "khach san", "khách sạn",
         "nha nghi", "nhà nghỉ",
-        "homestay", "home stay", "House",
-        "boutique",
+        "homestay", "home stay",
         "condotel",
         "phòng nghỉ", "phong nghi",
         "lưu trú", "luu tru",
-        "Villa"
+        "bungalow"
       ];
       data = data.filter(item => {
         const titleLower = String(item.title || '').toLowerCase();
@@ -1123,13 +1122,13 @@ function App() {
               {/* Checkbox lọc từ khóa khách sạn (Chỉ hiển thị cho Hotels) */}
               {dataType === 'hotels' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: '220px' }}>
-                  <label style={{ 
-                    fontSize: '0.875rem', 
-                    fontWeight: 600, 
-                    color: 'var(--text-main)', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem', 
+                  <label style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-main)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                     cursor: 'pointer',
                     userSelect: 'none'
                   }}>
@@ -1208,11 +1207,11 @@ function App() {
                 <span>
                   Đang hiển thị: <strong style={{ color: 'var(--text-main)' }}>{displayedData.length}</strong> trên tổng số <strong>{currentData.length}</strong> bản ghi
                 </span>
-                <span style={{ 
-                  padding: '0.2rem 0.6rem', 
-                  borderRadius: '6px', 
-                  backgroundColor: 'rgba(0, 184, 148, 0.15)', 
-                  color: '#00b894', 
+                <span style={{
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(0, 184, 148, 0.15)',
+                  color: '#00b894',
                   fontWeight: 600,
                   fontSize: '0.8125rem',
                   display: 'inline-flex',
