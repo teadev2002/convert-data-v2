@@ -24,6 +24,18 @@ import { exportToExcel } from './utils/excelExporter.js';
 // Styles chính
 import './App.css';
 
+// Hàm loại bỏ dấu tiếng Việt để tìm kiếm/đối chiếu không dấu
+const removeAccents = (str) => {
+  if (!str) return '';
+  return String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .trim();
+};
+
 // Bản đồ đồng nghĩa cho các tỉnh thành lớn để lọc địa chỉ thông minh
 const PROVINCE_SYNONYMS = [
   {
@@ -127,8 +139,10 @@ function App() {
   const [rawInput, setRawInput] = useState(''); // Lưu nội dung nhập liệu hoặc kéo thả thô
   const [currentData, setCurrentData] = useState([]); // Dữ liệu đang trực quan hóa (sau khi sắp xếp, lọc...)
   const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Local Storage (provinces)
-  const [filterHotelKeywords, setFilterHotelKeywords] = useState(false); // Bộ lọc từ khóa Khách sạn (Hotels)
+  const [filterHotelByTitle, setFilterHotelByTitle] = useState(false); // Bộ lọc từ khóa theo Tên cơ sở (Hotels)
+  const [filterHotelByCategory, setFilterHotelByCategory] = useState(false); // Bộ lọc từ khóa theo Phân loại (Hotels)
   const [addressFilterText, setAddressFilterText] = useState(''); // Chuỗi tìm kiếm địa chỉ đang chọn
+  const [searchQuery, setSearchQuery] = useState(''); // Chuỗi tìm kiếm từ khóa đa năng (Tên, SĐT, Địa chỉ, Email)
 
   const [selectedListId, setSelectedListId] = useState(''); // ID tỉnh thành đang chọn ở dropdown
   const [activeListId, setActiveListId] = useState(''); // ID tỉnh thành cũ đang hiển thị trên bảng
@@ -372,7 +386,8 @@ function App() {
     setDataType(type);
     setRawInput('');
     setCurrentData([]);
-    setFilterHotelKeywords(false);
+    setFilterHotelByTitle(false);
+    setFilterHotelByCategory(false);
     setAddressFilterText('');
     setIsAlertDismissed(false);
     setCustomErrorAlert(null);
@@ -381,7 +396,8 @@ function App() {
   // --- Xử lý nạp văn bản thô (khi dán hoặc kéo thả tệp) ---
   const handleRawInputLoad = (text) => {
     setRawInput(text);
-    setFilterHotelKeywords(false);
+    setFilterHotelByTitle(false);
+    setFilterHotelByCategory(false);
     // Tự động kích hoạt tiền xử lý sau khi nạp tệp thành công
     setTimeout(() => {
       try {
@@ -403,7 +419,8 @@ function App() {
       toast.warn('Vui lòng dán JSON/CSV hoặc kéo thả tệp trước khi xử lý.');
       return;
     }
-    setFilterHotelKeywords(false);
+    setFilterHotelByTitle(false);
+    setFilterHotelByCategory(false);
     try {
       const parsed = parseHotelData(rawInput);
       if (parsed.length === 0) {
@@ -547,7 +564,8 @@ function App() {
   const handleLoadSavedList = async () => {
     if (!selectedListId) return;
     setIsLoading(true);
-    setFilterHotelKeywords(false);
+    setFilterHotelByTitle(false);
+    setFilterHotelByCategory(false);
     try {
       const list = await listService.getById(selectedListId, dataType);
       if (list) {
@@ -592,7 +610,8 @@ function App() {
             setActiveListId('');
             setCurrentData([]);
             setRawInput('');
-            setFilterHotelKeywords(false);
+            setFilterHotelByTitle(false);
+            setFilterHotelByCategory(false);
           }
 
           setSelectedListId('');
@@ -929,7 +948,7 @@ function App() {
     }
   };
 
-  // Dữ liệu được hiển thị sau khi qua bộ lọc Địa chỉ và lọc từ khóa Khách sạn
+  // Dữ liệu được hiển thị sau khi qua bộ lọc Địa chỉ, lọc từ khóa Khách sạn và tìm kiếm nhanh
   const getDisplayedData = () => {
     let data = currentData;
 
@@ -938,8 +957,8 @@ function App() {
       data = data.filter(item => matchAddressWithSynonyms(item.address, addressFilterText));
     }
 
-    // 2. Lọc theo tên từ khóa khách sạn (chỉ áp dụng đối với tab hotels và khi bật tùy chọn)
-    if (dataType === 'hotels' && filterHotelKeywords) {
+    // 2. Lọc theo tên từ khóa khách sạn (chỉ áp dụng đối với tab hotels và khi bật ít nhất một tùy chọn)
+    if (dataType === 'hotels' && (filterHotelByTitle || filterHotelByCategory)) {
       const hotelKeywords = [
         "hotel", "motel", "hostel",
         "khach san", "khách sạn",
@@ -950,18 +969,36 @@ function App() {
         "lưu trú", "luu tru",
         "bungalow"
       ];
+      const categoryKeywords = ["hotel", "motel", "homestay"];
+
       data = data.filter(item => {
         const titleLower = String(item.title || '').toLowerCase();
         const categoryLower = String(item.categoryName || item.cuisineType || '').toLowerCase();
 
         // 1. Khớp theo từ khóa trong Tên cơ sở (title)
-        const matchesTitle = hotelKeywords.some(kw => titleLower.includes(kw.toLowerCase()));
+        const matchesTitle = filterHotelByTitle
+          ? hotelKeywords.some(kw => titleLower.includes(kw.toLowerCase()))
+          : false;
 
         // 2. Khớp theo từ khóa phân loại cốt lõi trong Phân loại (categoryName)
-        const categoryKeywords = ["hotel", "motel", "homestay"];
-        const matchesCategory = categoryKeywords.some(kw => categoryLower.includes(kw.toLowerCase()));
+        const matchesCategory = filterHotelByCategory
+          ? categoryKeywords.some(kw => categoryLower.includes(kw.toLowerCase()))
+          : false;
 
         return matchesTitle || matchesCategory;
+      });
+    }
+
+    // 3. Lọc theo ô tìm kiếm đa năng (Tên, SĐT, Địa chỉ, Email) - không phân biệt dấu và hoa thường
+    if (searchQuery.trim()) {
+      const q = removeAccents(searchQuery);
+      data = data.filter(item => {
+        return (
+          removeAccents(item.title).includes(q) ||
+          removeAccents(item.phone).includes(q) ||
+          removeAccents(item.address).includes(q) ||
+          removeAccents(item.email).includes(q)
+        );
       });
     }
 
@@ -1119,9 +1156,9 @@ function App() {
               backgroundColor: 'var(--bg-card)',
               flexWrap: 'wrap'
             }}>
-              {/* Checkbox lọc từ khóa khách sạn (Chỉ hiển thị cho Hotels) */}
+              {/* Checkboxes lọc từ khóa khách sạn (Chỉ hiển thị cho Hotels) */}
               {dataType === 'hotels' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: '220px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
                   <label style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
@@ -1134,19 +1171,61 @@ function App() {
                   }}>
                     <input
                       type="checkbox"
-                      checked={filterHotelKeywords}
-                      onChange={(e) => setFilterHotelKeywords(e.target.checked)}
+                      checked={filterHotelByTitle}
+                      onChange={(e) => setFilterHotelByTitle(e.target.checked)}
                       style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                     />
-                    🏨 Chỉ hiện từ khóa Khách sạn
+                    🏨 Lọc từ khóa theo Tên
+                  </label>
+
+                  <label style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-main)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={filterHotelByCategory}
+                      onChange={(e) => setFilterHotelByCategory(e.target.checked)}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                    🏷️ Lọc từ khóa theo Phân loại
                   </label>
                 </div>
               )}
 
+              {/* Ô nhập tìm kiếm nhanh đa năng */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1, minWidth: '280px' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                  🔎 Tìm kiếm:
+                </label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm theo Tên, SĐT, Địa chỉ, Email..."
+                  style={{
+                    flexGrow: 1,
+                    padding: '0.375rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.875rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
               {/* Ô nhập lọc theo địa chỉ */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1, minWidth: '280px' }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                  🔍 Lọc địa chỉ:
+                  📍 Lọc địa chỉ:
                 </label>
                 <input
                   type="text"

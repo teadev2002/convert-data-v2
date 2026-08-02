@@ -116,8 +116,15 @@
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .textarea-wrapper {
@@ -172,8 +179,15 @@
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 /* Control Bar */
@@ -215,8 +229,15 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .result-header {
@@ -264,7 +285,7 @@
   overflow-x: auto;
   border-radius: 12px;
   border: 1px solid var(--border-color);
-  max-height: 480px;
+  max-height: 900px;
 }
 
 .hotel-table {
@@ -326,13 +347,40 @@
   border-radius: 4px;
 }
 
-.col-stt { width: 60px; text-align: center; }
-.col-title { font-weight: 600; min-width: 160px; }
-.col-phone { font-family: var(--font-mono); font-size: 0.8125rem; width: 130px; }
-.col-address { min-width: 200px; }
-.col-score { width: 90px; text-align: center; }
-.col-url { width: 80px; text-align: center; }
-.col-website { width: 90px; text-align: center; }
+.col-stt {
+  width: 60px;
+  text-align: center;
+}
+
+.col-title {
+  font-weight: 600;
+  min-width: 160px;
+}
+
+.col-phone {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  width: 130px;
+}
+
+.col-address {
+  min-width: 200px;
+}
+
+.col-score {
+  width: 90px;
+  text-align: center;
+}
+
+.col-url {
+  width: 80px;
+  text-align: center;
+}
+
+.col-website {
+  width: 90px;
+  text-align: center;
+}
 
 .external-link {
   color: var(--primary);
@@ -388,8 +436,13 @@
 }
 
 @keyframes fadeInModal {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-content {
@@ -406,8 +459,15 @@
 }
 
 @keyframes scaleUp {
-  from { transform: scale(0.9) translateY(10px); opacity: 0; }
-  to { transform: scale(1) translateY(0); opacity: 1; }
+  from {
+    transform: scale(0.9) translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 
 .modal-header {
@@ -465,8 +525,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-overlay {
@@ -499,21 +564,22 @@
   #root {
     padding: 1rem;
   }
-  
-  .control-bar, .storage-manager {
+
+  .control-bar,
+  .storage-manager {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .storage-select-group {
     min-width: 100%;
   }
-  
+
   .result-header {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .result-tabs {
     justify-content: center;
   }
