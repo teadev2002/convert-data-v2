@@ -967,7 +967,7 @@ function App() {
         "condotel",
         "phòng nghỉ", "phong nghi",
         "lưu trú", "luu tru",
-        "bungalow"
+        "bungalow", "resort"
       ];
       const categoryKeywords = ["hotel", "motel", "homestay"];
 
