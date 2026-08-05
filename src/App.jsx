@@ -1003,22 +1003,23 @@ function App() {
         "condotel",
         "phòng nghỉ", "phong nghi",
         "lưu trú", "luu tru",
-        "bungalow", "resort"
+        "bungalow", "resort", "villa"
       ];
-      const categoryKeywords = ["hotel", "motel", "homestay"];
+      // Biểu thức chính quy chỉ khớp dạng x-star hotel từ 1-5 sao
+      const categoryPattern = /([1-5]\s*-?\s*star\s*hotel|khach\s*san\s*[1-5]\s*sao|[1-5]\s*sao\s*khach\s*san)/i;
 
       data = data.filter(item => {
         const titleLower = String(item.title || '').toLowerCase();
-        const categoryLower = String(item.categoryName || item.cuisineType || '').toLowerCase();
+        const categoryVal = String(item.categoryName || item.cuisineType || '');
 
         // 1. Khớp theo từ khóa trong Tên cơ sở (title)
         const matchesTitle = filterHotelByTitle
           ? hotelKeywords.some(kw => titleLower.includes(kw.toLowerCase()))
           : false;
 
-        // 2. Khớp theo từ khóa phân loại cốt lõi trong Phân loại (categoryName)
+        // 2. Khớp theo biểu thức chính quy trong Phân loại (categoryName)
         const matchesCategory = filterHotelByCategory
-          ? categoryKeywords.some(kw => categoryLower.includes(kw.toLowerCase()))
+          ? categoryPattern.test(removeAccents(categoryVal))
           : false;
 
         return matchesTitle || matchesCategory;
