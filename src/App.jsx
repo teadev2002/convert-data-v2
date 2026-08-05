@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Alert, Button, Popconfirm } from 'antd';
+import { Alert, Button, Popconfirm, Select } from 'antd';
 
 // Import các components
 import Header from './components/Header.jsx';
@@ -117,6 +117,18 @@ const matchAddressWithSynonyms = (addressStr, filterText) => {
   return normAddress.includes(normFilter);
 };
 
+// Danh sách 63 tỉnh thành Việt Nam phục vụ cho bộ lọc chọn nhiều
+const PROVINCES_LIST = [
+  "An Giang", "Bà Rịa-Vũng Tàu", "Bắc Giang", "Bắc Kạn", "Bạc Liêu", "Bắc Ninh", "Bến Tre", "Bình Định",
+  "Bình Dương", "Bình Phước", "Bình Thuận", "Cà Mau", "Cần Thơ", "Cao Bằng", "Đà Nẵng", "Đắk Lắk",
+  "Đắk Nông", "Điện Biên", "Đồng Nai", "Đồng Tháp", "Gia Lai", "Hà Giang", "Hà Nam", "Hà Nội",
+  "Hà Tĩnh", "Hải Dương", "Hải Phòng", "Hậu Giang", "TP. Hồ Chí Minh", "Hòa Bình", "Hưng Yên", "Khánh Hòa",
+  "Kiên Giang", "Kon Tum", "Lai Châu", "Lâm Đồng", "Lạng Sơn", "Lào Cai", "Long An", "Nam Định",
+  "Nghệ An", "Ninh Bình", "Ninh Thuận", "Phú Thọ", "Phú Yên", "Quảng Bình", "Quảng Nam", "Quảng Ngãi",
+  "Quảng Ninh", "Quảng Trị", "Sóc Trăng", "Sơn La", "Tây Ninh", "Thái Bình", "Thái Nguyên", "Thanh Hóa",
+  "Thừa Thiên - Huế", "Tiền Giang", "Trà Vinh", "Tuyên Quang", "Vĩnh Long", "Vĩnh Phúc", "Yên Bái"
+];
+
 function App() {
   // --- Cơ chế định tuyến nhẹ (Routing) ---
   const [currentRoute, setCurrentRoute] = useState(window.location.pathname);
@@ -143,6 +155,7 @@ function App() {
   const [filterHotelByCategory, setFilterHotelByCategory] = useState(false); // Bộ lọc từ khóa theo Phân loại (Hotels)
   const [addressFilterText, setAddressFilterText] = useState(''); // Chuỗi tìm kiếm địa chỉ đang chọn
   const [searchQuery, setSearchQuery] = useState(''); // Chuỗi tìm kiếm từ khóa đa năng (Tên, SĐT, Địa chỉ, Email)
+  const [selectedProvinces, setSelectedProvinces] = useState([]); // Mảng lưu các tỉnh thành đang được chọn để lọc
 
   const [selectedListId, setSelectedListId] = useState(''); // ID tỉnh thành đang chọn ở dropdown
   const [activeListId, setActiveListId] = useState(''); // ID tỉnh thành cũ đang hiển thị trên bảng
@@ -686,11 +699,26 @@ function App() {
     setCurrentData(updatedData);
   };
 
+  // --- Hàm kiểm tra khớp địa chỉ dựa theo cả Dropdown chọn nhiều tỉnh thành và ô nhập tay ---
+  const isMatchingAddress = (item) => {
+    // 1. Nếu có chọn tỉnh thành từ dropdown, bắt buộc phải khớp ít nhất một tỉnh thành được chọn
+    if (selectedProvinces && selectedProvinces.length > 0) {
+      const matchSelected = selectedProvinces.some(prov => matchAddressWithSynonyms(item.address, prov));
+      if (!matchSelected) return false;
+    }
+    // 2. Nếu có nhập ô lọc địa chỉ thủ công, bắt buộc phải khớp
+    if (addressFilterText.trim()) {
+      const matchText = matchAddressWithSynonyms(item.address, addressFilterText);
+      if (!matchText) return false;
+    }
+    return true;
+  };
+
   // --- Hành động: Loại bỏ đồng loạt các bản ghi không khớp bộ lọc địa chỉ ---
   const handleDiscardNonMatchingRows = () => {
-    if (!addressFilterText.trim()) return;
+    if (!addressFilterText.trim() && selectedProvinces.length === 0) return;
 
-    const kept = currentData.filter(item => matchAddressWithSynonyms(item.address, addressFilterText));
+    const kept = currentData.filter(isMatchingAddress);
     const discardedCount = currentData.length - kept.length;
 
     if (discardedCount === 0) {
@@ -705,16 +733,17 @@ function App() {
 
     setCurrentData(reindexed);
     setAddressFilterText('');
-    toast.success(`Đã loại bỏ đồng loạt ${discardedCount} dòng không khớp địa chỉ khỏi bảng.`);
+    setSelectedProvinces([]);
+    toast.success(`Đã loại bỏ đồng loạt ${discardedCount} dòng không khớp bộ lọc địa chỉ khỏi bảng.`);
   };
 
   // --- Hành động: Lưu các bản ghi không khớp địa chỉ vào kho Temp riêng trên Local Storage ---
   const handleSaveNonMatchingRowsToTemp = async () => {
-    if (!addressFilterText.trim()) return;
+    if (!addressFilterText.trim() && selectedProvinces.length === 0) return;
 
-    const nonMatching = currentData.filter(item => !matchAddressWithSynonyms(item.address, addressFilterText));
+    const nonMatching = currentData.filter(item => !isMatchingAddress(item));
     if (nonMatching.length === 0) {
-      toast.info('Mọi bản ghi đều khớp địa chỉ, không có bản ghi nào để lưu vào kho Temp.');
+      toast.info('Mọi bản ghi đều khớp bộ lọc địa chỉ, không có bản ghi nào để lưu vào kho Temp.');
       return;
     }
 
@@ -746,7 +775,7 @@ function App() {
         dupFields
       );
 
-      toast.success(`Đã lưu ${nonMatching.length} bản ghi không khớp địa chỉ vào danh sách "${tempProvinceName}" trên Local Storage.`);
+      toast.success(`Đã lưu ${nonMatching.length} bản ghi không khớp bộ lọc địa chỉ vào danh sách "${tempProvinceName}" trên Local Storage.`);
 
       await loadSavedLists();
       setLastSavedTime(Date.now());
@@ -952,7 +981,14 @@ function App() {
   const getDisplayedData = () => {
     let data = currentData;
 
-    // 1. Lọc theo Địa chỉ (thông minh, hỗ trợ từ khóa đồng nghĩa tỉnh thành)
+    // 1A. Lọc theo các tỉnh thành đã chọn từ dropdown chọn nhiều
+    if (selectedProvinces && selectedProvinces.length > 0) {
+      data = data.filter(item => {
+        return selectedProvinces.some(prov => matchAddressWithSynonyms(item.address, prov));
+      });
+    }
+
+    // 1B. Lọc theo Địa chỉ ô nhập tay (thông minh, hỗ trợ từ khóa đồng nghĩa tỉnh thành)
     if (addressFilterText.trim()) {
       data = data.filter(item => matchAddressWithSynonyms(item.address, addressFilterText));
     }
@@ -1199,6 +1235,26 @@ function App() {
                 </div>
               )}
 
+              {/* Ô chọn nhiều tỉnh thành */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1, minWidth: '320px' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                  📍 Chọn tỉnh thành:
+                </label>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  style={{ flexGrow: 1, minWidth: '220px' }}
+                  placeholder="Chọn một hoặc nhiều tỉnh thành..."
+                  value={selectedProvinces}
+                  onChange={setSelectedProvinces}
+                  options={PROVINCES_LIST.map(p => ({ label: p, value: p }))}
+                  filterOption={(input, option) =>
+                    normalizeStr(option.label).includes(normalizeStr(input))
+                  }
+                  maxTagCount="responsive"
+                />
+              </div>
+
               {/* Ô nhập tìm kiếm nhanh đa năng */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1, minWidth: '280px' }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
@@ -1246,7 +1302,7 @@ function App() {
               </div>
 
               {/* Các nút hành động nâng cao dựa trên lọc địa chỉ */}
-              {addressFilterText.trim() && (
+              {(addressFilterText.trim() || selectedProvinces.length > 0) && (
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <Popconfirm
                     title="Xác nhận loại bỏ?"
