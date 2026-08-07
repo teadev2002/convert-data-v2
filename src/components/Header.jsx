@@ -17,7 +17,9 @@ export default function Header({ isDark, onToggleTheme, currentRoute, onNavigate
             borderRadius: '8px',
             cursor: 'pointer',
             background: currentRoute === '/' ? 'var(--primary)' : undefined,
-            color: currentRoute === '/' ? '#fff' : undefined
+            color: currentRoute === '/' ? '#fff' : undefined,
+            width: '100px',
+            height: '50px',
           }}
         >
           🏠 Trang chủ
@@ -31,7 +33,9 @@ export default function Header({ isDark, onToggleTheme, currentRoute, onNavigate
             borderRadius: '8px',
             cursor: 'pointer',
             background: currentRoute === '/merge-file' ? 'var(--primary)' : undefined,
-            color: currentRoute === '/merge-file' ? '#fff' : undefined
+            color: currentRoute === '/merge-file' ? '#fff' : undefined,
+            width: '100px',
+            height: '50px',
           }}
         >
           🔀 Hợp nhất file
@@ -45,7 +49,9 @@ export default function Header({ isDark, onToggleTheme, currentRoute, onNavigate
             borderRadius: '8px',
             cursor: 'pointer',
             background: currentRoute === '/json-accumulator' ? 'var(--primary)' : undefined,
-            color: currentRoute === '/json-accumulator' ? '#fff' : undefined
+            color: currentRoute === '/json-accumulator' ? '#fff' : undefined,
+            width: '100px',
+            height: '50px',
           }}
         >
           🧩 Cộng dồn JSON
