@@ -1009,8 +1009,14 @@ function App() {
       const categoryPattern = /([1-5]\s*-?\s*star\s*hotel|khach\s*san\s*[1-5]\s*sao|[1-5]\s*sao\s*khach\s*san)/i;
 
       data = data.filter(item => {
-        const titleLower = String(item.title || '').toLowerCase();
+        const titleVal = String(item.title || '');
+        const titleLower = titleVal.toLowerCase();
         const categoryVal = String(item.categoryName || item.cuisineType || '');
+
+        // Loại bỏ record có chữ "nhà nghỉ" (không dấu/có dấu) khi bật bộ lọc tên, dù có là x-star hotel vẫn loại bỏ
+        if (filterHotelByTitle && removeAccents(titleVal).includes("nha nghi")) {
+          return false;
+        }
 
         // 1. Khớp theo từ khóa trong Tên cơ sở (title)
         const matchesTitle = filterHotelByTitle
