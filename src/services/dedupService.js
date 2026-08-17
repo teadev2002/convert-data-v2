@@ -1,8 +1,14 @@
 import { storageService } from './storageService.js';
 
 // Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
-function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: true, title: true }) {
-  const clean = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
+function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: true, title: true }, ignoreAccents = false) {
+  const clean = (val) => {
+    let s = String(val || '').trim().toLowerCase();
+    if (ignoreAccents) {
+      s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
+    }
+    return s.normalize('NFC');
+  };
   const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
   let hasCheckedField = false;
@@ -46,9 +52,10 @@ export const dedupService = {
    * @param {string|null} provinceId - Tên tỉnh thành đang xem (activeListId) dùng để loại trừ
    * @param {string} dataType - Loại dữ liệu đang đối chiếu ('hotels', 'restaurants' hoặc 'spa')
    * @param {Object} dupFields - Đối tượng chứa trạng thái kích hoạt của các trường lọc trùng
+   * @param {boolean} ignoreAccents - Có bỏ qua dấu tiếng Việt khi đối chiếu hay không
    * @returns {Promise<{duplicateStts: Array<number>}>}
    */
-  async checkDuplicates(records, provinceId = null, dataType = 'hotels', dupFields = { url: true, address: true, phone: true, title: true }) {
+  async checkDuplicates(records, provinceId = null, dataType = 'hotels', dupFields = { url: true, address: true, phone: true, title: true }, ignoreAccents = false) {
     try {
       const activeKey = provinceId ? `${dataType}-${provinceId}` : null;
       let allDbRecords = [];
@@ -73,7 +80,7 @@ export const dedupService = {
       if (allDbRecords.length > 0) {
         for (const item of records) {
           for (const dbRec of allDbRecords) {
-            if (isMatchSelected(item, dbRec, dupFields)) {
+            if (isMatchSelected(item, dbRec, dupFields, ignoreAccents)) {
               duplicateStts.push(item.stt);
               break; // Phát hiện trùng, dừng quét tiếp
             }

@@ -10,7 +10,8 @@ export default function ResultSection({
   onSortByScore,
   onSortByPhoneAndStars,
   onExportExcel,
-  onToggleFlag
+  onToggleFlag,
+  onConvertToHotel
 }) {
   const [activeTab, setActiveTab] = useState('table');
 
@@ -81,6 +82,16 @@ export default function ResultSection({
           >
             ⚡ Sắp xếp SĐT &amp; Sao
           </button>
+          {dataType === 'hotels' && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onConvertToHotel}
+              title="Đổi các chữ 'Khách Sạn', 'khach san', 'ks' trong Tên cơ sở thành 'hotel'"
+            >
+              🔄 Chuyển sang hotel
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-secondary"

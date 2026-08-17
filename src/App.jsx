@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Alert, Button, Popconfirm, Select } from 'antd';
+import { Alert, Button, Popconfirm, Select, Modal } from 'antd';
 
 // Import các components
 import Header from './components/Header.jsx';
@@ -189,6 +189,8 @@ function App() {
     phone: false,
     title: false
   }); // Trạng thái các checkbox chọn trường lọc trùng
+  const [ignoreAccents, setIgnoreAccents] = useState(false); // Lựa chọn đối chiếu trùng lặp bỏ qua dấu tiếng Việt
+  const [isDedupModalOpen, setIsDedupModalOpen] = useState(false); // Trạng thái hiển thị modal tùy chọn xóa trùng
   const handleDupFieldsChange = (field) => {
     setDupFields(prev => ({ ...prev, [field]: !prev[field] }));
   };
@@ -220,24 +222,47 @@ function App() {
 
   // --- Hành động: Xóa các dòng trùng lặp khỏi bảng hiển thị ---
   const handleRemoveDuplicates = useCallback(() => {
-    const beforeCount = currentData.length;
-    const cleanData = currentData.filter(item => !item.isDuplicate);
-
-    if (cleanData.length === beforeCount) {
+    const totalDup = currentData.filter(item => item.isDuplicate).length;
+    if (totalDup === 0) {
       toast.info('Bảng hiện tại không chứa dòng trùng lặp nào để xóa.');
       return;
     }
+    setIsDedupModalOpen(true);
+  }, [currentData]);
+
+  const performRemoveDuplicates = (type) => {
+    setIsDedupModalOpen(false);
+    const beforeCount = currentData.length;
+
+    const fileDupCount = currentData.filter(item => item.isDuplicate && item.duplicateSource === 'file').length;
+    const storageDupCount = currentData.filter(item => item.isDuplicate && item.duplicateSource === 'storage').length;
+    const totalDupCount = currentData.filter(item => item.isDuplicate).length;
+
+    let cleanData = [];
+    let removedCount = 0;
+
+    if (type === 'file') {
+      cleanData = currentData.filter(item => !(item.isDuplicate && item.duplicateSource === 'file'));
+      removedCount = fileDupCount;
+    } else if (type === 'storage') {
+      cleanData = currentData.filter(item => !(item.isDuplicate && item.duplicateSource === 'storage'));
+      removedCount = storageDupCount;
+    } else if (type === 'both') {
+      cleanData = currentData.filter(item => !item.isDuplicate);
+      removedCount = totalDupCount;
+    }
+
+    if (removedCount === 0) return;
 
     // Sắp xếp và đánh lại số thứ tự STT bắt từ 1
     const reindexedData = cleanData.map((item, idx) => ({
       ...item,
-      stt: idx + 1,
-      isDuplicate: false // Reset cờ trùng
+      stt: idx + 1
     }));
 
     setCurrentData(reindexedData);
-    toast.success(`Đã loại bỏ thành công ${beforeCount - reindexedData.length} dòng trùng lặp!`);
-  }, [currentData]);
+    toast.success(`Đã loại bỏ thành công ${removedCount} dòng trùng lặp!`);
+  };
 
   // --- Chuyển đổi chủ đề Light / Dark Mode ---
   const handleToggleTheme = () => {
@@ -459,6 +484,10 @@ function App() {
       return;
     }
 
+    console.log('>>> [Check Duplicates] Started');
+    console.log('>>> ignoreAccents State:', ignoreAccents);
+    console.log('>>> dupFields State:', dupFields);
+
     setIsChecking(true);
     const toastId = toast.loading('Đang tiến hành đối chiếu trùng lặp diện rộng...');
 
@@ -467,12 +496,20 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 900));
 
       // Gọi đối chiếu với dữ liệu Local Storage
-      const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType, dupFields);
+      const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType, dupFields, ignoreAccents);
+
+      console.log('>>> Storage duplicates found (duplicateStts):', duplicateStts);
 
       const apiDupSet = new Set(duplicateStts);
       const localSeen = []; // Lưu các bản ghi đã duyệt qua để kiểm tra trùng chéo nội bộ
 
-      const cleanString = (val) => String(val || '').trim().toLowerCase().normalize('NFC');
+      const cleanString = (val) => {
+        let s = String(val || '').trim().toLowerCase();
+        if (ignoreAccents) {
+          s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
+        }
+        return s.normalize('NFC');
+      };
       const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
       // Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
@@ -504,6 +541,8 @@ function App() {
           hasCheckedField = true;
           const t1 = cleanString(r1.title);
           const t2 = cleanString(r2.title);
+          const isMatch = t1 && t2 && t1 === t2;
+          console.log(`>>> Comparing titles: "${r1.title}" vs "${r2.title}" | Cleaned: "${t1}" vs "${t2}" | Match: ${isMatch}`);
           if (!t1 || !t2 || t1 !== t2) return false;
         }
 
@@ -570,6 +609,50 @@ function App() {
       });
     } finally {
       setIsChecking(false);
+    }
+  };
+
+  // --- Hành động: Chuyển đổi các chữ Khách Sạn, khach san, ks thành hotel ---
+  const handleConvertToHotel = () => {
+    if (currentData.length === 0) return;
+
+    let modifiedCount = 0;
+    const updatedData = currentData.map(item => {
+      const oldTitle = item.title || '';
+      if (!oldTitle) return item;
+
+      // Thay thế không phân biệt chữ hoa, chữ thường và dấu tiếng Việt của "khách sạn", "khach san"
+      // Và "ks" độc lập (nhờ \bks\b)
+      let newTitle = oldTitle
+        .replace(/khách\s+sạn/gi, 'hotel')
+        .replace(/khach\s+san/gi, 'hotel')
+        .replace(/\bks\b/gi, 'hotel');
+
+      // Nếu title sau khi thay thế bắt đầu bằng "hotel" (không phân biệt hoa thường), viết hoa chữ cái đầu thành "Hotel"
+      if (newTitle.toLowerCase().startsWith('hotel ')) {
+        newTitle = 'Hotel ' + newTitle.substring(6);
+      } else if (newTitle.toLowerCase() === 'hotel') {
+        newTitle = 'Hotel';
+      }
+
+      // Loại bỏ khoảng trắng thừa
+      newTitle = newTitle.replace(/\s+/g, ' ').trim();
+
+      if (newTitle !== oldTitle) {
+        modifiedCount++;
+        return {
+          ...item,
+          title: newTitle
+        };
+      }
+      return item;
+    });
+
+    if (modifiedCount > 0) {
+      setCurrentData(updatedData);
+      toast.success(`Đã chuyển đổi thành công ${modifiedCount} tên cơ sở sang "hotel"!`);
+    } else {
+      toast.info('Không tìm thấy tên cơ sở nào chứa "Khách Sạn", "khach san" hoặc "ks" để chuyển đổi.');
     }
   };
 
@@ -1048,6 +1131,10 @@ function App() {
     return data;
   };
 
+  const fileDupCount = useMemo(() => currentData.filter(item => item.isDuplicate && item.duplicateSource === 'file').length, [currentData]);
+  const storageDupCount = useMemo(() => currentData.filter(item => item.isDuplicate && item.duplicateSource === 'storage').length, [currentData]);
+  const totalDupCount = useMemo(() => currentData.filter(item => item.isDuplicate).length, [currentData]);
+
   const displayedData = getDisplayedData();
 
   return (
@@ -1156,6 +1243,8 @@ function App() {
               isChecking={isChecking}
               dupFields={dupFields}
               onDupFieldsChange={handleDupFieldsChange}
+              ignoreAccents={ignoreAccents}
+              onIgnoreAccentsChange={setIgnoreAccents}
             />
 
             {/* Trình quản lý lưu trữ tỉnh thành: Xem, Xóa, Lưu */}
@@ -1375,6 +1464,7 @@ function App() {
             onSortByPhoneAndStars={handleSortByPhoneAndStars}
             onExportExcel={handleExportExcel}
             onToggleFlag={handleToggleFlag}
+            onConvertToHotel={handleConvertToHotel}
           />
 
           {/* --- CÁC POPUP MODALS TÙY BIẾN --- */}
@@ -1388,6 +1478,85 @@ function App() {
             onCancel={() => setIsSaveModalOpen(false)}
             isLoading={isLoading}
           />
+
+          {/* Modal Lựa chọn xóa trùng lặp */}
+          <Modal
+            title={<span style={{ fontSize: '1.1rem', fontWeight: 600 }}>🛠️ Lựa chọn xóa trùng lặp</span>}
+            open={isDedupModalOpen}
+            onCancel={() => setIsDedupModalOpen(false)}
+            footer={null}
+            width={450}
+            centered
+          >
+            <div style={{ padding: '0.5rem 0' }}>
+              <p style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>
+                Vui lòng lựa chọn phương thức xóa trùng lặp cho <strong>{currentData.length}</strong> bản ghi hiện tại:
+              </p>
+              
+              <div style={{
+                backgroundColor: 'rgba(255, 159, 67, 0.05)',
+                border: '1px solid rgba(255, 159, 67, 0.2)',
+                borderRadius: '6px',
+                padding: '0.75rem',
+                marginBottom: '1.25rem',
+                fontSize: '0.875rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span>📁 Trùng nội bộ (trong tệp):</span>
+                  <strong style={{ color: '#e67e22' }}>{fileDupCount} dòng</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span>📦 Trùng trong kho (Local Storage):</span>
+                  <strong style={{ color: 'var(--danger)' }}>{storageDupCount} dòng</strong>
+                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '0.5rem 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                  <span>Tổng số trùng lặp:</span>
+                  <span style={{ color: 'var(--warning-text)' }}>{totalDupCount} dòng</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <Button 
+                  type="default" 
+                  onClick={() => performRemoveDuplicates('file')}
+                  disabled={fileDupCount === 0}
+                  style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '2.5rem' }}
+                >
+                  <span>📁 Xóa trùng trong tệp</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loại bỏ {fileDupCount} dòng</span>
+                </Button>
+                
+                <Button 
+                  type="default" 
+                  onClick={() => performRemoveDuplicates('storage')}
+                  disabled={storageDupCount === 0}
+                  style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '2.5rem' }}
+                >
+                  <span>📦 Xóa trùng trong kho</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loại bỏ {storageDupCount} dòng</span>
+                </Button>
+
+                <Button 
+                  type="primary" 
+                  danger
+                  onClick={() => performRemoveDuplicates('both')}
+                  style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '2.5rem' }}
+                >
+                  <span>🔥 Xóa cả 2 loại trùng</span>
+                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Loại bỏ {totalDupCount} dòng</span>
+                </Button>
+
+                <Button 
+                  type="text" 
+                  onClick={() => setIsDedupModalOpen(false)}
+                  style={{ height: '2.5rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  Hủy bỏ
+                </Button>
+              </div>
+            </div>
+          </Modal>
 
           {/* Modal Xác nhận */}
           <ConfirmModal

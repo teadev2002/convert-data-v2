@@ -18,7 +18,7 @@ export default function Header({ isDark, onToggleTheme, currentRoute, onNavigate
             cursor: 'pointer',
             background: currentRoute === '/' ? 'var(--primary)' : undefined,
             color: currentRoute === '/' ? '#fff' : undefined,
-            width: '100px',
+            width: '160px',
             height: '50px',
           }}
         >

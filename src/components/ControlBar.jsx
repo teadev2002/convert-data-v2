@@ -8,11 +8,13 @@ export default function ControlBar({
   hasData,
   isChecking,
   dupFields = { url: true, address: true, phone: true, title: true },
-  onDupFieldsChange
+  onDupFieldsChange,
+  ignoreAccents,
+  onIgnoreAccentsChange
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-      <div className="control-bar" style={{ margin: 0 }}>
+      <div className="control-bar" style={{ margin: 0, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         {/* Nút Xử lý dữ liệu */}
         <button
           type="button"
@@ -41,6 +43,30 @@ export default function ControlBar({
             '🔍 Kiểm tra trùng lặp'
           )}
         </button>
+
+        {/* Checkbox Trùng không dấu */}
+        <label style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.35rem',
+          cursor: 'pointer',
+          color: 'var(--text-main)',
+          fontSize: '0.875rem',
+          fontWeight: 600,
+          userSelect: 'none',
+          padding: '0.375rem 0.5rem',
+          borderRadius: '6px',
+          border: '1px dashed var(--border-color)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)'
+        }} title="Bỏ qua dấu tiếng Việt khi đối chiếu so sánh tên cơ sở, địa chỉ...">
+          <input
+            type="checkbox"
+            checked={!!ignoreAccents}
+            onChange={(e) => onIgnoreAccentsChange(e.target.checked)}
+            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+          />
+          🔠 Trùng không dấu
+        </label>
 
         {/* Nút Xóa các dòng trùng lặp */}
         <button
