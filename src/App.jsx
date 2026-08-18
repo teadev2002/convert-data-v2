@@ -505,7 +505,14 @@ function App() {
         }
         return s.normalize('NFC');
       };
-      const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
+      const cleanPhone = (val) => {
+        const parts = String(val || '').split(/[|/,;]/);
+        const cleaned = parts
+          .map(p => p.replace(/\D/g, ''))
+          .filter(p => p !== '')
+          .sort();
+        return cleaned.join('|');
+      };
 
       // Hàm trích xuất tên riêng thực tế (loại bỏ loại hình)
       const extractActualName = (title) => {
@@ -999,39 +1006,54 @@ function App() {
     };
 
     const sorted = [...processedData].sort((a, b) => {
+      // 1. Phân biệt theo Có SĐT và Không có SĐT
+      const phoneTypeA = getPhoneType(a);
+      const phoneTypeB = getPhoneType(b);
+      const hasPhoneA = phoneTypeA > 0 ? 1 : 0;
+      const hasPhoneB = phoneTypeB > 0 ? 1 : 0;
+
+      if (hasPhoneA !== hasPhoneB) {
+        return hasPhoneB - hasPhoneA; // Có SĐT lên trước
+      }
+
+      // 2. Cả hai cùng có hoặc cùng không có SĐT
       const starA = extractStarRating(a.categoryName || a.cuisineType);
       const starB = extractStarRating(b.categoryName || b.cuisineType);
-
       const hasStarA = starA > 0;
       const hasStarB = starB > 0;
 
-      // 1. So sánh sự hiện diện của Sao (có sao xếp trước không sao)
-      if (hasStarA !== hasStarB) {
-        return hasStarA ? -1 : 1;
-      }
-
-      // 2. Nếu cả 2 đều có sao, so sánh số sao giảm dần (5★ -> 1★)
-      if (hasStarA && hasStarB) {
-        if (starA !== starB) {
-          return starB - starA;
+      if (hasPhoneA === 1) {
+        // --- Nhóm CÓ SĐT ---
+        if (hasStarA !== hasStarB) {
+          return hasStarA ? -1 : 1; // Có sao xếp trước
         }
-        // Nếu cùng số sao, so sánh loại số điện thoại: Viettel (2) > Khác (1) > Không có (0)
-        const phoneTypeA = getPhoneType(a);
-        const phoneTypeB = getPhoneType(b);
+        if (hasStarA && hasStarB) {
+          if (starA !== starB) {
+            return starB - starA; // Nhiều sao hơn xếp trước
+          }
+          if (phoneTypeA !== phoneTypeB) {
+            return phoneTypeB - phoneTypeA; // Viettel (2) > Khác (1)
+          }
+          return String(a.title || '').localeCompare(String(b.title || ''));
+        }
+        // Cùng không có sao
         if (phoneTypeA !== phoneTypeB) {
-          return phoneTypeB - phoneTypeA;
+          return phoneTypeB - phoneTypeA; // Viettel (2) > Khác (1)
         }
-        // Nếu cùng loại số điện thoại, so sánh Title A-Z
+        return String(a.title || '').localeCompare(String(b.title || ''));
+      } else {
+        // --- Nhóm KHÔNG CÓ SĐT ---
+        if (hasStarA !== hasStarB) {
+          return hasStarA ? -1 : 1; // Có sao xếp trước
+        }
+        if (hasStarA && hasStarB) {
+          if (starA !== starB) {
+            return starB - starA; // Nhiều sao hơn xếp trước
+          }
+          return String(a.title || '').localeCompare(String(b.title || ''));
+        }
         return String(a.title || '').localeCompare(String(b.title || ''));
       }
-
-      // 3. Nếu cả 2 đều không có sao, so sánh theo nhóm phân cấp không sao
-      const groupA = getNonStarredGroup(a);
-      const groupB = getNonStarredGroup(b);
-      if (groupA !== groupB) {
-        return groupB - groupA;
-      }
-      return String(a.title || '').localeCompare(String(b.title || ''));
     });
 
     const reindexedData = sorted.map((item, idx) => ({

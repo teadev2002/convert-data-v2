@@ -42,7 +42,14 @@ export const dedupService = {
           }
           return s.normalize('NFC');
         };
-        const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
+        const cleanPhone = (val) => {
+          const parts = String(val || '').split(/[|/,;]/);
+          const cleaned = parts
+            .map(p => p.replace(/\D/g, ''))
+            .filter(p => p !== '')
+            .sort();
+          return cleaned.join('|');
+        };
 
         // Hàm trích xuất tên riêng thực tế (loại bỏ loại hình)
         const extractActualName = (title) => {
