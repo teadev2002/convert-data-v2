@@ -3,7 +3,7 @@ import { normalizePhone } from './phoneNormalizer';
 
 // Định nghĩa danh sách các từ đồng nghĩa (aliases) cho từng trường dữ liệu để ánh xạ thông minh
 const FIELD_ALIASES = {
-  title: ['title', 'ten', 'tên', 'name', 'hotel', 'co_so', 'cơ sở', 'ten_co_so'],
+  title: ['title', 'ten', 'tên', 'name', 'hotel', 'co_so', 'cơ sở', 'ten_co_so', 'tên khách sạn'],
   phone: ['phone', 'so_dien_thoai', 'sdt', 'sđt', 'dien_thoai', 'điện thoại', 'tel', 'sdt_goc', 'sđt_gốc'],
   address: ['address', 'dia_chi', 'địa chỉ', 'location', 'dia-chi', 'dia_chi_co_so'],
   url: ['url', 'google_maps_url', 'link', 'maps', 'map', 'link_google_maps', 'google-map'],

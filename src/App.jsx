@@ -13,6 +13,7 @@ import SaveModal from './components/SaveModal.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import MergeFile from './components/MergeFile.jsx';
 import JsonAccumulator from './components/JsonAccumulator.jsx';
+import Hotel4MailView from './components/Hotel4MailView.jsx';
 
 // Import các dịch vụ API & tiện ích
 import { listService } from './services/listService.js';
@@ -1082,7 +1083,6 @@ function App() {
       const hotelKeywords = [
         "hotel", "motel", "hostel",
         "khach san", "khách sạn",
-        "nha nghi", "nhà nghỉ",
         "homestay", "home stay",
         "condotel",
         "phòng nghỉ", "phong nghi",
@@ -1152,6 +1152,8 @@ function App() {
         <MergeFile isDark={isDarkTheme} setIsLoading={setIsLoading} />
       ) : currentRoute === '/json-accumulator' ? (
         <JsonAccumulator />
+      ) : currentRoute === '/view-hotel4mail' ? (
+        <Hotel4MailView data={displayedData} onNavigate={navigate} />
       ) : (
         <>
           {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}
@@ -1466,6 +1468,7 @@ function App() {
             onExportExcel={handleExportExcel}
             onToggleFlag={handleToggleFlag}
             onConvertToHotel={handleConvertToHotel}
+            onGoToHotel4Mail={() => navigate('/view-hotel4mail')}
           />
 
           {/* --- CÁC POPUP MODALS TÙY BIẾN --- */}
@@ -1493,7 +1496,7 @@ function App() {
               <p style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>
                 Vui lòng lựa chọn phương thức xóa trùng lặp cho <strong>{currentData.length}</strong> bản ghi hiện tại:
               </p>
-              
+
               <div style={{
                 backgroundColor: 'rgba(255, 159, 67, 0.05)',
                 border: '1px solid rgba(255, 159, 67, 0.2)',
@@ -1518,8 +1521,8 @@ function App() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                <Button 
-                  type="default" 
+                <Button
+                  type="default"
                   onClick={() => performRemoveDuplicates('file')}
                   disabled={fileDupCount === 0}
                   style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '2.5rem' }}
@@ -1527,9 +1530,9 @@ function App() {
                   <span>📁 Xóa trùng trong tệp</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loại bỏ {fileDupCount} dòng</span>
                 </Button>
-                
-                <Button 
-                  type="default" 
+
+                <Button
+                  type="default"
                   onClick={() => performRemoveDuplicates('storage')}
                   disabled={storageDupCount === 0}
                   style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '2.5rem' }}
@@ -1538,8 +1541,8 @@ function App() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loại bỏ {storageDupCount} dòng</span>
                 </Button>
 
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   danger
                   onClick={() => performRemoveDuplicates('both')}
                   style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '2.5rem' }}
@@ -1548,8 +1551,8 @@ function App() {
                   <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Loại bỏ {totalDupCount} dòng</span>
                 </Button>
 
-                <Button 
-                  type="text" 
+                <Button
+                  type="text"
                   onClick={() => setIsDedupModalOpen(false)}
                   style={{ height: '2.5rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >

@@ -57,6 +57,22 @@ export default function Header({ isDark, onToggleTheme, currentRoute, onNavigate
           🧩 Cộng dồn JSON
         </button>
         <button
+          onClick={() => onNavigate('/view-hotel4mail')}
+          className="theme-toggle-btn"
+          style={{
+            fontSize: '0.9rem',
+            padding: '0.4rem 0.8rem',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            background: currentRoute === '/view-hotel4mail' ? 'var(--primary)' : undefined,
+            color: currentRoute === '/view-hotel4mail' ? '#fff' : undefined,
+            width: '130px',
+            height: '50px',
+          }}
+        >
+          📧 View Hotel4mail
+        </button>
+        <button
           onClick={onToggleTheme}
           className="theme-toggle-btn"
           title={isDark ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}

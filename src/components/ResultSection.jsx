@@ -11,7 +11,8 @@ export default function ResultSection({
   onSortByPhoneAndStars,
   onExportExcel,
   onToggleFlag,
-  onConvertToHotel
+  onConvertToHotel,
+  onGoToHotel4Mail
 }) {
   const [activeTab, setActiveTab] = useState('table');
 
@@ -90,6 +91,16 @@ export default function ResultSection({
               title="Đổi các chữ 'Khách Sạn', 'khach san', 'ks' trong Tên cơ sở thành 'hotel'"
             >
               🔄 Chuyển sang hotel
+            </button>
+          )}
+          {dataType === 'hotels' && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onGoToHotel4Mail}
+              title="Chuyển sang xem và xuất dữ liệu định dạng hotel4mail"
+            >
+              📧 Chuyển Hotel4mail
             </button>
           )}
           <button
