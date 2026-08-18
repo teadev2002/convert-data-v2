@@ -484,10 +484,6 @@ function App() {
       return;
     }
 
-    console.log('>>> [Check Duplicates] Started');
-    console.log('>>> ignoreAccents State:', ignoreAccents);
-    console.log('>>> dupFields State:', dupFields);
-
     setIsChecking(true);
     const toastId = toast.loading('Đang tiến hành đối chiếu trùng lặp diện rộng...');
 
@@ -498,10 +494,8 @@ function App() {
       // Gọi đối chiếu với dữ liệu Local Storage
       const { duplicateStts } = await dedupService.checkDuplicates(currentData, activeListId || null, dataType, dupFields, ignoreAccents);
 
-      console.log('>>> Storage duplicates found (duplicateStts):', duplicateStts);
-
       const apiDupSet = new Set(duplicateStts);
-      const localSeen = []; // Lưu các bản ghi đã duyệt qua để kiểm tra trùng chéo nội bộ
+      const seenKeys = new Set(); // Lưu trữ mã khóa đại diện đã duyệt qua để kiểm trùng nội bộ
 
       const cleanString = (val) => {
         let s = String(val || '').trim().toLowerCase();
@@ -512,44 +506,21 @@ function App() {
       };
       const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
 
-      // Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
-      const isMatchSelected = (r1, r2) => {
-        let hasCheckedField = false;
-
-        if (dupFields.url) {
-          hasCheckedField = true;
-          const u1 = cleanString(r1.url);
-          const u2 = cleanString(r2.url);
-          if (!u1 || !u2 || u1 !== u2) return false;
+      // Hàm trích xuất tên riêng thực tế (loại bỏ loại hình)
+      const extractActualName = (title) => {
+        let s = cleanString(title);
+        const categoryKeywords = ["hotel", "resort", "bungalow", "villa", "khach san", "nha nghi", "spa", "restaurant", "nha hang"];
+        for (const kw of categoryKeywords) {
+          const regex = new RegExp(`\\b${kw}\\b`, 'gi');
+          if (regex.test(s)) {
+            s = s.replace(regex, '').replace(/\s+/g, ' ').trim();
+            break;
+          }
         }
-
-        if (dupFields.address) {
-          hasCheckedField = true;
-          const a1 = cleanString(r1.address);
-          const a2 = cleanString(r2.address);
-          if (!a1 || !a2 || a1 !== a2) return false;
-        }
-
-        if (dupFields.phone) {
-          hasCheckedField = true;
-          const p1 = cleanPhone(r1.phone);
-          const p2 = cleanPhone(r2.phone);
-          if (!p1 || !p2 || p1 !== p2) return false;
-        }
-
-        if (dupFields.title) {
-          hasCheckedField = true;
-          const t1 = cleanString(r1.title);
-          const t2 = cleanString(r2.title);
-          const isMatch = t1 && t2 && t1 === t2;
-          console.log(`>>> Comparing titles: "${r1.title}" vs "${r2.title}" | Cleaned: "${t1}" vs "${t2}" | Match: ${isMatch}`);
-          if (!t1 || !t2 || t1 !== t2) return false;
-        }
-
-        return hasCheckedField;
+        return s;
       };
 
-      // Cập nhật thuộc tính isDuplicate và duplicateSource
+      // Cập nhật thuộc tính isDuplicate và duplicateSource bằng Set O(1)
       const updatedData = currentData.map(item => {
         let isDup = apiDupSet.has(item.stt);
         let dupSource = null;
@@ -558,18 +529,48 @@ function App() {
           dupSource = 'storage'; // Trùng với dữ liệu đã lưu trong kho Local Storage
         }
 
-        // Kiểm tra trùng chéo nội bộ (Internal Duplicates)
-        if (!isDup) {
-          for (const seenItem of localSeen) {
-            if (isMatchSelected(item, seenItem)) {
+        // Tạo khóa đại diện kết hợp cho bản ghi hiện tại
+        let isValid = true;
+        const keyParts = [];
+
+        if (dupFields.url) {
+          const u = cleanString(item.url);
+          if (!u) isValid = false;
+          else keyParts.push(`url:${u}`);
+        }
+
+        if (dupFields.address) {
+          const a = cleanString(item.address);
+          if (!a) isValid = false;
+          else keyParts.push(`addr:${a}`);
+        }
+
+        if (dupFields.phone) {
+          const p = cleanPhone(item.phone);
+          if (!p) isValid = false;
+          else keyParts.push(`phone:${p}`);
+        }
+
+        if (dupFields.title) {
+          const t = extractActualName(item.title);
+          if (!t) isValid = false;
+          else keyParts.push(`title:${t}`);
+        }
+
+        if (isValid && keyParts.length > 0) {
+          const key = keyParts.join('|');
+          if (!isDup) {
+            if (seenKeys.has(key)) {
               isDup = true;
               dupSource = 'file'; // Trùng nội bộ trong tệp vừa nạp
-              break;
+            } else {
+              seenKeys.add(key);
             }
+          } else {
+            seenKeys.add(key);
           }
         }
 
-        localSeen.push(item);
         return {
           ...item,
           isDuplicate: isDup,

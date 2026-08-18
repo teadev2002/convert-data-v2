@@ -1,53 +1,10 @@
 import { storageService } from './storageService.js';
 
-// Hàm đối chiếu xem hai bản ghi có trùng khớp dựa trên tất cả các trường được chọn (điều kiện AND)
-function isMatchSelected(r1, r2, dupFields = { url: true, address: true, phone: true, title: true }, ignoreAccents = false) {
-  const clean = (val) => {
-    let s = String(val || '').trim().toLowerCase();
-    if (ignoreAccents) {
-      s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
-    }
-    return s.normalize('NFC');
-  };
-  const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
-
-  let hasCheckedField = false;
-
-  if (dupFields.url) {
-    hasCheckedField = true;
-    const u1 = clean(r1.url);
-    const u2 = clean(r2.url);
-    if (!u1 || !u2 || u1 !== u2) return false;
-  }
-
-  if (dupFields.address) {
-    hasCheckedField = true;
-    const a1 = clean(r1.address);
-    const a2 = clean(r2.address);
-    if (!a1 || !a2 || a1 !== a2) return false;
-  }
-
-  if (dupFields.phone) {
-    hasCheckedField = true;
-    const p1 = cleanPhone(r1.phone);
-    const p2 = cleanPhone(r2.phone);
-    if (!p1 || !p2 || p1 !== p2) return false;
-  }
-
-  if (dupFields.title) {
-    hasCheckedField = true;
-    const t1 = clean(r1.title);
-    const t2 = clean(r2.title);
-    if (!t1 || !t2 || t1 !== t2) return false;
-  }
-
-  return hasCheckedField;
-}
-
 export const dedupService = {
   /**
    * Nghiệp vụ Kiểm tra trùng lặp (Deduplication Check) diện rộng trên IndexedDB / Storage
    * Quét tất cả các key lưu trữ dạng [dataType]-[provinceName] để làm đối chiếu loại trùng
+   * Giải thuật tối ưu O(N + M) sử dụng Set để lưu trữ các mã khóa kết hợp.
    * @param {Array<Object>} records - Danh sách các bản ghi cần đối chiếu kiểm tra trùng lặp
    * @param {string|null} provinceId - Tên tỉnh thành đang xem (activeListId) dùng để loại trừ
    * @param {string} dataType - Loại dữ liệu đang đối chiếu ('hotels', 'restaurants' hoặc 'spa')
@@ -76,13 +33,99 @@ export const dedupService = {
 
       const duplicateStts = [];
 
-      // Tiến hành đối chiếu trùng khớp
-      if (allDbRecords.length > 0) {
+      if (allDbRecords.length > 0 && records.length > 0) {
+        // Hàm làm sạch chuỗi tùy thuộc vào ignoreAccents
+        const cleanStr = (val) => {
+          let s = String(val || '').trim().toLowerCase();
+          if (ignoreAccents) {
+            s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
+          }
+          return s.normalize('NFC');
+        };
+        const cleanPhone = (val) => String(val || '').replace(/\D/g, '');
+
+        // Hàm trích xuất tên riêng thực tế (loại bỏ loại hình)
+        const extractActualName = (title) => {
+          let s = cleanStr(title);
+          const categoryKeywords = ["hotel", "resort", "bungalow", "villa", "khach san", "nha nghi", "spa", "restaurant", "nha hang"];
+          for (const kw of categoryKeywords) {
+            const regex = new RegExp(`\\b${kw}\\b`, 'gi');
+            if (regex.test(s)) {
+              s = s.replace(regex, '').replace(/\s+/g, ' ').trim();
+              break;
+            }
+          }
+          return s;
+        };
+
+        // 1. Tạo dbKeySet chứa các chuỗi khóa đại diện từ Local Storage
+        const dbKeySet = new Set();
+        for (const r of allDbRecords) {
+          let isValid = true;
+          const keyParts = [];
+
+          if (dupFields.url) {
+            const u = cleanStr(r.url);
+            if (!u) isValid = false;
+            else keyParts.push(`url:${u}`);
+          }
+
+          if (dupFields.address) {
+            const a = cleanStr(r.address);
+            if (!a) isValid = false;
+            else keyParts.push(`addr:${a}`);
+          }
+
+          if (dupFields.phone) {
+            const p = cleanPhone(r.phone);
+            if (!p) isValid = false;
+            else keyParts.push(`phone:${p}`);
+          }
+
+          if (dupFields.title) {
+            const t = extractActualName(r.title);
+            if (!t) isValid = false;
+            else keyParts.push(`title:${t}`);
+          }
+
+          if (isValid && keyParts.length > 0) {
+            dbKeySet.add(keyParts.join('|'));
+          }
+        }
+
+        // 2. Đối chiếu records hiện tại với dbKeySet
         for (const item of records) {
-          for (const dbRec of allDbRecords) {
-            if (isMatchSelected(item, dbRec, dupFields, ignoreAccents)) {
+          let isValid = true;
+          const keyParts = [];
+
+          if (dupFields.url) {
+            const u = cleanStr(item.url);
+            if (!u) isValid = false;
+            else keyParts.push(`url:${u}`);
+          }
+
+          if (dupFields.address) {
+            const a = cleanStr(item.address);
+            if (!a) isValid = false;
+            else keyParts.push(`addr:${a}`);
+          }
+
+          if (dupFields.phone) {
+            const p = cleanPhone(item.phone);
+            if (!p) isValid = false;
+            else keyParts.push(`phone:${p}`);
+          }
+
+          if (dupFields.title) {
+            const t = extractActualName(item.title);
+            if (!t) isValid = false;
+            else keyParts.push(`title:${t}`);
+          }
+
+          if (isValid && keyParts.length > 0) {
+            const key = keyParts.join('|');
+            if (dbKeySet.has(key)) {
               duplicateStts.push(item.stt);
-              break; // Phát hiện trùng, dừng quét tiếp
             }
           }
         }
