@@ -88,39 +88,39 @@ export function exportHotel4MailToExcel(data, fileName = 'hotels_4mail.xlsx') {
   ];
 
   const formattedRows = data.map((item, index) => {
-    let phoneStr = item.phone || '';
+    let phoneStr = item.phone || item["Phone"] || '';
     if (phoneStr.startsWith('0')) {
       phoneStr = `'${phoneStr}`;
     }
 
     return [
       index + 1,                 // STT
-      item.title || '',          // Tên khách sạn
-      item.email || '',          // Email
+      item.title || item["Tên khách sạn"] || item["Hotel Name"] || '',
+      item.email || item["Email"] || '',
       phoneStr,                  // Phone
-      item.categoryName || '',   // CategoryName
-      "",                        // Ghi chú
-      "",                        // Ngày tương tác
-      "",                        // Tên nv gọi
-      "",                        // Emai
-      "",                        // Gửi email
-      "",                        // Nhắc L1
-      "",                        // Nhắc lần 2
-      "",                        // Ngày nhận Báo giá, Hợp đồng (1)
-      "",                        // Ngày up TT NCC (1)
-      "",                        // Đọc AI (1)
-      "",                        // Kiểm tra Dữ liệu AI (1)
-      "",                        // Zalo
-      "",                        // Gửi zalo
-      "",                        // Nhắc lần 1
-      "",                        // Nhắc lần 2
-      "",                        // Ngày nhận Báo giá, Hợp đồng (2)
-      "",                        // Ngày up TT NCC (2)
-      "",                        // Đọc AI (2)
-      "",                        // Kiểm tra Dữ liệu AI (2)
-      "",                        // Khác
-      item.address || '',        // Address
-      item.url || ''             // url
+      item.categoryName || item["CategoryName"] || '',   // CategoryName
+      item["Ghi chú"] || '',
+      item["Ngày tương tác"] || '',
+      item["Tên nv gọi"] || '',
+      item["Emai"] || item["Email liên hệ"] || '',
+      item["Gửi email"] || '',
+      item["Nhắc L1"] || item["Nhắc lần 1 (Email)"] || '',
+      item["Nhắc lần 2"] || item["Nhắc lần 2 (Email)"] || '',
+      item["Ngày nhận Báo giá, Hợp đồng"] || item["Ngày nhận Báo giá, Hợp đồng (Email)"] || '',
+      item["Ngày up TT NCC"] || item["Ngày up TT NCC (Email)"] || '',
+      item["Đọc AI"] || item["Đọc AI (Email)"] || '',
+      item["Kiểm tra Dữ liệu AI"] || item["Kiểm tra Dữ liệu AI (Email)"] || '',
+      item["Zalo"] || '',
+      item["Gửi zalo"] || '',
+      item["Nhắc lần 1"] || item["Nhắc lần 1 (Zalo)"] || '',
+      item["Nhắc lần 2"] || item["Nhắc lần 2 (Zalo)"] || '',
+      item["Ngày nhận Báo giá, Hợp đồng (Zalo)"] || item["Ngày nhận Báo giá, Hợp đồng "] || '',
+      item["Ngày up TT NCC (Zalo)"] || item["Ngày up TT NCC "] || '',
+      item["Đọc AI (Zalo)"] || item["Đọc AI "] || '',
+      item["Kiểm tra Dữ liệu AI (Zalo)"] || item["Kiểm tra Dữ liệu AI "] || '',
+      item["Khác"] || '',
+      item.address || item["Address"] || '',
+      item.url || item["URL"] || item["url"] || ''
     ];
   });
 

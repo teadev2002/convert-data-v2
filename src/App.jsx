@@ -452,6 +452,13 @@ function App() {
     }, 100);
   };
 
+  // --- Xử lý nạp dữ liệu trực tiếp đã được parse (từ trang hotel4mail) ---
+  const handleImportData = (parsedData) => {
+    setCurrentData(parsedData);
+    setRawInput(JSON.stringify(parsedData, null, 2));
+    setActiveListId(''); // Reset activeListId vì đây là tệp mới import
+  };
+
   // --- Hành động: Xử lý dữ liệu thô (nút thủ công) ---
   const handleProcessData = () => {
     if (!rawInput.trim()) {
@@ -1175,7 +1182,7 @@ function App() {
       ) : currentRoute === '/json-accumulator' ? (
         <JsonAccumulator />
       ) : currentRoute === '/view-hotel4mail' ? (
-        <Hotel4MailView data={displayedData} onNavigate={navigate} />
+        <Hotel4MailView data={displayedData} onNavigate={navigate} onImportData={handleImportData} />
       ) : (
         <>
           {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}
