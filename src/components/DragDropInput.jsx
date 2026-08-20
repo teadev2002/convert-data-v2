@@ -64,11 +64,11 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
           const rawJson = XLSX.utils.sheet_to_json(worksheet);
 
           const jsonStr = JSON.stringify(rawJson, null, 2);
-          onRawInputLoad(jsonStr);
+          onRawInputLoad(jsonStr, file.name);
           toast.success(`Đã nạp tệp Excel "${file.name}" thành công!`);
         } else {
           const text = event.target.result;
-          onRawInputLoad(text);
+          onRawInputLoad(text, file.name);
           toast.success(`Đã nạp tệp tin "${file.name}" thành công!`);
         }
       } catch (err) {

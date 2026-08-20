@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { parseHotelData } from '../utils/parser.js';
 import { exportHotel4MailToExcel } from '../utils/excelExporter.js';
 
-export default function Hotel4MailView({ data, onNavigate, onImportData }) {
+export default function Hotel4MailView({ data, onNavigate, onImportData, currentFileName }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
@@ -43,7 +43,7 @@ export default function Hotel4MailView({ data, onNavigate, onImportData }) {
         }
 
         if (onImportData) {
-          onImportData(parsed);
+          onImportData(parsed, file.name);
           toast.success(`Đã nạp thành công ${parsed.length} bản ghi!`);
         }
       } catch (err) {
@@ -227,6 +227,24 @@ export default function Hotel4MailView({ data, onNavigate, onImportData }) {
           <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Đang hiển thị <strong style={{ color: 'var(--text-main)' }}>{data.length}</strong> khách sạn với cấu trúc cột tùy chỉnh.
           </p>
+          {currentFileName && (
+            <div style={{
+              marginTop: '0.5rem',
+              fontSize: '0.9rem',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              backgroundColor: 'rgba(99, 102, 241, 0.08)',
+              padding: '0.35rem 0.75rem',
+              borderRadius: '6px',
+              borderLeft: '3px solid var(--primary)',
+              width: 'fit-content'
+            }}>
+              📂 <span>Tệp đang xử lý:</span>
+              <strong style={{ color: 'var(--text-main)', wordBreak: 'break-all' }}>{currentFileName}</strong>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

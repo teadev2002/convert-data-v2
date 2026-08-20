@@ -150,6 +150,7 @@ function App() {
   // --- States toàn cục quản lý luồng dữ liệu ---
   const [dataType, setDataType] = useState('hotels'); // 'hotels', 'restaurants' hoặc 'spa'
   const [rawInput, setRawInput] = useState(''); // Lưu nội dung nhập liệu hoặc kéo thả thô
+  const [currentFileName, setCurrentFileName] = useState(''); // Tên tệp tin đang được xử lý
   const [currentData, setCurrentData] = useState([]); // Dữ liệu đang trực quan hóa (sau khi sắp xếp, lọc...)
   const [lists, setLists] = useState([]); // Danh mục các tỉnh thành từ Local Storage (provinces)
   const [filterHotelByTitle, setFilterHotelByTitle] = useState(false); // Bộ lọc từ khóa theo Tên cơ sở (Hotels)
@@ -433,8 +434,9 @@ function App() {
   };
 
   // --- Xử lý nạp văn bản thô (khi dán hoặc kéo thả tệp) ---
-  const handleRawInputLoad = (text) => {
+  const handleRawInputLoad = (text, filename) => {
     setRawInput(text);
+    setCurrentFileName(filename || 'dữ liệu nhập thô');
     setFilterHotelByTitle(false);
     setFilterHotelByCategory(false);
     // Tự động kích hoạt tiền xử lý sau khi nạp tệp thành công
@@ -452,10 +454,21 @@ function App() {
     }, 100);
   };
 
+  // --- Xử lý thay đổi dữ liệu nhập thô thủ công ---
+  const handleRawInputChange = (val) => {
+    setRawInput(val);
+    if (!val.trim()) {
+      setCurrentFileName('');
+    } else {
+      setCurrentFileName('dữ liệu nhập thủ công / dán');
+    }
+  };
+
   // --- Xử lý nạp dữ liệu trực tiếp đã được parse (từ trang hotel4mail) ---
-  const handleImportData = (parsedData) => {
+  const handleImportData = (parsedData, filename) => {
     setCurrentData(parsedData);
     setRawInput(JSON.stringify(parsedData, null, 2));
+    setCurrentFileName(filename || 'tệp nạp trực tiếp');
     setActiveListId(''); // Reset activeListId vì đây là tệp mới import
   };
 
@@ -1182,7 +1195,7 @@ function App() {
       ) : currentRoute === '/json-accumulator' ? (
         <JsonAccumulator />
       ) : currentRoute === '/view-hotel4mail' ? (
-        <Hotel4MailView data={displayedData} onNavigate={navigate} onImportData={handleImportData} />
+        <Hotel4MailView data={displayedData} onNavigate={navigate} onImportData={handleImportData} currentFileName={currentFileName} />
       ) : (
         <>
           {/* 2. Main Card - Khung Điều Khiển Nhập Liệu & Tác Vụ */}
@@ -1261,7 +1274,7 @@ function App() {
             {/* Vùng kéo thả dữ liệu JSON/CSV */}
             <DragDropInput
               value={rawInput}
-              onChange={setRawInput}
+              onChange={handleRawInputChange}
               onRawInputLoad={handleRawInputLoad}
             />
 
@@ -1498,6 +1511,7 @@ function App() {
             onToggleFlag={handleToggleFlag}
             onConvertToHotel={handleConvertToHotel}
             onGoToHotel4Mail={() => navigate('/view-hotel4mail')}
+            currentFileName={currentFileName}
           />
 
           {/* --- CÁC POPUP MODALS TÙY BIẾN --- */}

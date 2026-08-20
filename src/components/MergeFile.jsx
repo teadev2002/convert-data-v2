@@ -687,7 +687,30 @@ export default function MergeFile({ isDark, setIsLoading }) {
             type="success"
             showIcon
             message="Hợp nhất thành công!"
-            description={`Tổng số: ${mergeSummary.totalRecords} bản ghi sau gộp. Đối sánh thành công ${mergeSummary.matchedCount} bản ghi trùng. Đã gộp và điền ${mergeSummary.emailsFilled} email còn thiếu (bao gồm ${mergeSummary.conflictsResolved} xung đột đã giải quyết).`}
+            description={
+              <div>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  Tổng số: <strong>{mergeSummary.totalRecords}</strong> bản ghi sau gộp. Đối sánh thành công <strong>{mergeSummary.matchedCount}</strong> bản ghi trùng. Đã gộp và điền <strong>{mergeSummary.emailsFilled}</strong> email còn thiếu (bao gồm <strong>{mergeSummary.conflictsResolved}</strong> xung đột đã giải quyết).
+                </div>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  borderLeft: '3px solid var(--primary)',
+                  fontSize: '0.85rem',
+                  marginTop: '0.25rem'
+                }}>
+                  <span>📂</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Tệp nguồn đã hợp nhất:</span>
+                  <strong style={{ color: 'var(--text-main)', wordBreak: 'break-all' }}>{file1?.name}</strong>
+                  <span style={{ color: 'var(--primary)' }}>🤝</span>
+                  <strong style={{ color: 'var(--text-main)', wordBreak: 'break-all' }}>{file2?.name}</strong>
+                </div>
+              </div>
+            }
             action={
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <Button size="small" type="primary" onClick={handleExportExcel}>

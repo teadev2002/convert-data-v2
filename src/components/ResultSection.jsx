@@ -12,7 +12,8 @@ export default function ResultSection({
   onExportExcel,
   onToggleFlag,
   onConvertToHotel,
-  onGoToHotel4Mail
+  onGoToHotel4Mail,
+  currentFileName
 }) {
   const [activeTab, setActiveTab] = useState('table');
 
@@ -121,6 +122,24 @@ export default function ResultSection({
           </button>
         </div>
       </div>
+
+      {currentFileName && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.75rem 1rem',
+          backgroundColor: 'rgba(99, 102, 241, 0.08)',
+          borderLeft: '4px solid var(--primary)',
+          borderRadius: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          fontSize: '0.95rem'
+        }}>
+          <span style={{ fontSize: '1.2rem' }}>📂</span>
+          <span style={{ color: 'var(--text-muted)' }}>Tệp đang xử lý:</span>
+          <strong style={{ color: 'var(--text-main)', fontSize: '1rem', wordBreak: 'break-all' }}>{currentFileName}</strong>
+        </div>
+      )}
 
       {/* Hiển thị nội dung dựa trên tab đang chọn */}
       <div style={{ marginTop: '0.5rem' }}>
