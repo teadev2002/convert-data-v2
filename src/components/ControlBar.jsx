@@ -1,4 +1,3 @@
-import React from 'react';
 
 export default function ControlBar({
   onProcess,
@@ -44,29 +43,7 @@ export default function ControlBar({
           )}
         </button>
 
-        {/* Checkbox Trùng không dấu */}
-        <label style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          cursor: 'pointer',
-          color: 'var(--text-main)',
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          userSelect: 'none',
-          padding: '0.375rem 0.5rem',
-          borderRadius: '6px',
-          border: '1px dashed var(--border-color)',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)'
-        }} title="Bỏ qua dấu tiếng Việt khi đối chiếu so sánh tên cơ sở, địa chỉ...">
-          <input
-            type="checkbox"
-            checked={!!ignoreAccents}
-            onChange={(e) => onIgnoreAccentsChange(e.target.checked)}
-            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-          />
-          🔠 Trùng không dấu
-        </label>
+
 
         {/* Nút Xóa các dòng trùng lặp */}
         <button
@@ -94,6 +71,29 @@ export default function ControlBar({
           flexWrap: 'wrap'
         }}>
           <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>So khớp trùng theo:</span>
+          {/* Checkbox Trùng không dấu */}
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            cursor: 'pointer',
+            color: 'var(--text-main)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            userSelect: 'none',
+            padding: '0.375rem 0.5rem',
+            borderRadius: '6px',
+            border: '1px dashed var(--border-color)',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)'
+          }} title="Bỏ qua dấu tiếng Việt khi đối chiếu so sánh tên cơ sở, địa chỉ...">
+            <input
+              type="checkbox"
+              checked={!!ignoreAccents}
+              onChange={(e) => onIgnoreAccentsChange(e.target.checked)}
+              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+            />
+            🔠 Trùng không dấu
+          </label>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', color: 'var(--text-main)' }}>
             <input

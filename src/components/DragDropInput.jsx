@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 
@@ -34,7 +34,7 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const file = e.dataTransfer.files[0];
     if (!file) return;
     processFile(file);
@@ -62,7 +62,7 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           const rawJson = XLSX.utils.sheet_to_json(worksheet);
-          
+
           const jsonStr = JSON.stringify(rawJson, null, 2);
           onRawInputLoad(jsonStr);
           toast.success(`Đã nạp tệp Excel "${file.name}" thành công!`);
@@ -86,11 +86,11 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
 
   const handleTextChange = (val) => {
     setLocalValue(val);
-    
+
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
-    
+
     debounceTimerRef.current = setTimeout(() => {
       onChange(val);
     }, 500);
@@ -105,8 +105,8 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
 
   // Xác định dữ liệu lớn (> 150.000 ký tự)
   const isLarge = localValue && localValue.length >= 150000;
-  
-  const displayValue = isLarge 
+
+  const displayValue = isLarge
     ? localValue.substring(0, 50000) + `\n\n... [DỮ LIỆU LỚN (${(localValue.length / 1024 / 1024).toFixed(2)} MB) - Đã được thu gọn để tránh làm lag trình duyệt. Bạn có thể xem bảng và các thao tác bình thường.] ...`
     : localValue;
 
@@ -121,19 +121,19 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
         <label style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           Dữ liệu đầu vào (Excel, JSON hoặc CSV):
           {isLarge && (
-            <span style={{ 
-              backgroundColor: 'rgba(235, 94, 40, 0.15)', 
-              color: '#eb5e28', 
-              padding: '0.15rem 0.5rem', 
-              borderRadius: '6px', 
-              fontSize: '0.75rem', 
-              fontWeight: 700 
+            <span style={{
+              backgroundColor: 'rgba(235, 94, 40, 0.15)',
+              color: '#eb5e28',
+              padding: '0.15rem 0.5rem',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 700
             }}>
               ⚠️ Dữ liệu lớn (Read-only chống lag)
             </span>
           )}
         </label>
-        
+
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {isLarge && (
             <button
@@ -145,8 +145,8 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
               🗑️ Xóa dữ liệu
             </button>
           )}
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="api-import-toggle"
             onClick={() => fileInputRef.current.click()}
             title="Chọn tệp Excel, JSON hoặc CSV từ thiết bị của bạn"
@@ -154,16 +154,16 @@ export default function DragDropInput({ value, onChange, onRawInputLoad }) {
             📂 Chọn tệp tin (.xlsx, .csv, .json)
           </button>
         </div>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileChange} 
-          accept=".json,.csv,.xlsx,.xls" 
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".json,.csv,.xlsx,.xls"
           style={{ display: 'none' }}
         />
       </div>
 
-      <div 
+      <div
         className={`textarea-wrapper ${isDragging ? 'dragging' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
