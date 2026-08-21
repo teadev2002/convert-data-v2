@@ -19,7 +19,7 @@ export default function TableView({ data, onDeleteRow, onToggleFlag }) {
 
   const totalItems = data.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  
+
   // Đảm bảo currentPage luôn hợp lệ trong khoảng [1, totalPages]
   const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
 
@@ -33,6 +33,7 @@ export default function TableView({ data, onDeleteRow, onToggleFlag }) {
         <table className="hotel-table">
           <thead>
             <tr>
+              <th style={{ width: '60px', textAlign: 'center' }}>Xóa</th>
               <th className="col-stt">STT</th>
               <th className="col-title">Tên cơ sở</th>
               <th className="col-email">Email</th>
@@ -45,7 +46,7 @@ export default function TableView({ data, onDeleteRow, onToggleFlag }) {
               <th className="col-cuisine" style={{ minWidth: '130px' }}>categoryName (Loại hình)</th>
               <th className="col-source">Nguồn tin</th>
               <th className="col-isflag" style={{ width: '80px', textAlign: 'center' }}>Đánh dấu</th>
-              <th style={{ width: '60px', textAlign: 'center' }}>Xóa</th>
+
             </tr>
           </thead>
           <tbody>
@@ -53,6 +54,18 @@ export default function TableView({ data, onDeleteRow, onToggleFlag }) {
               const globalIndex = startIndex + index;
               return (
                 <tr key={globalIndex} className={row.isDuplicate ? 'duplicate-row' : ''}>
+                  {/* Nút hành động xóa hàng thủ công */}
+                  <td style={{ textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem' }}
+                      onClick={() => onDeleteRow(globalIndex)}
+                      title="Xóa dòng này khỏi danh sách đang xem"
+                    >
+                      ❌
+                    </button>
+                  </td>
                   {/* Số thứ tự tính toán dựa theo vị trí toàn cục của bản ghi */}
                   <td className="col-stt">{row.stt || (globalIndex + 1)}</td>
 
@@ -172,18 +185,7 @@ export default function TableView({ data, onDeleteRow, onToggleFlag }) {
                     />
                   </td>
 
-                  {/* Nút hành động xóa hàng thủ công */}
-                  <td style={{ textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem' }}
-                      onClick={() => onDeleteRow(globalIndex)}
-                      title="Xóa dòng này khỏi danh sách đang xem"
-                    >
-                      ❌
-                    </button>
-                  </td>
+
                 </tr>
               );
             })}
@@ -230,7 +232,7 @@ export default function TableView({ data, onDeleteRow, onToggleFlag }) {
             >
               ◀️
             </button>
-            
+
             <span style={{ fontSize: '0.875rem', margin: '0 0.5rem', color: 'var(--text-muted)' }}>
               Trang <strong style={{ color: 'var(--primary)' }}>{validCurrentPage}</strong> / <strong>{totalPages}</strong>
             </span>
