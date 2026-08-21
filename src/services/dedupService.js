@@ -53,7 +53,8 @@ export const dedupService = {
 
         // Hàm trích xuất tên riêng thực tế (loại bỏ loại hình)
         const extractActualName = (title) => {
-          let s = cleanStr(title);
+          let rawTitle = String(title || '').replace(/\(#.*?\)/g, '').trim();
+          let s = cleanStr(rawTitle);
           const categoryKeywords = ["hotel", "resort", "bungalow", "villa", "khach san", "nha nghi", "spa", "restaurant", "nha hang"];
           for (const kw of categoryKeywords) {
             const regex = new RegExp(`\\b${kw}\\b`, 'gi');

@@ -334,8 +334,9 @@ function App() {
 
           if (dupFields.title) {
             hasCheckedField = true;
-            const t1 = cleanString(item.title);
-            const t2 = cleanString(dbRec.title);
+            const cleanTitle = (t) => cleanString(String(t || '').replace(/\(#.*?\)/g, ''));
+            const t1 = cleanTitle(item.title);
+            const t2 = cleanTitle(dbRec.title);
             if (!t1 || !t2 || t1 !== t2) return false;
           }
 
@@ -536,7 +537,8 @@ function App() {
 
       // Hàm trích xuất tên riêng thực tế (loại bỏ loại hình)
       const extractActualName = (title) => {
-        let s = cleanString(title);
+        let rawTitle = String(title || '').replace(/\(#.*?\)/g, '').trim();
+        let s = cleanString(rawTitle);
         const categoryKeywords = ["hotel", "resort", "bungalow", "villa", "khach san", "nha nghi", "spa", "restaurant", "nha hang"];
         for (const kw of categoryKeywords) {
           const regex = new RegExp(`\\b${kw}\\b`, 'gi');
