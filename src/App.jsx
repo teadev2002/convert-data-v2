@@ -232,29 +232,132 @@ function App() {
     setIsDedupModalOpen(true);
   }, [currentData]);
 
+  // Helper trích xuất khóa đại diện cho bản ghi dựa theo dupFields và ignoreAccents hiện tại
+  const getItemKey = (item) => {
+    if (!item) return null;
+
+    const cleanString = (val) => {
+      let s = String(val || '').trim().toLowerCase();
+      if (ignoreAccents) {
+        s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
+      }
+      return s.normalize('NFC');
+    };
+
+    const cleanPhone = (val) => {
+      const parts = String(val || '').split(/[|/,;]/);
+      const cleaned = parts
+        .map(p => p.replace(/\D/g, ''))
+        .filter(p => p !== '')
+        .sort();
+      return cleaned.join('|');
+    };
+
+    const extractActualName = (title) => {
+      let rawTitle = String(title || '').replace(/\(#.*?\)/g, '').trim();
+      let s = cleanString(rawTitle);
+      const categoryKeywords = ["hotel", "resort", "bungalow", "villa", "khach san", "nha nghi", "spa", "restaurant", "nha hang"];
+      for (const kw of categoryKeywords) {
+        const regex = new RegExp(`\\b${kw}\\b`, 'gi');
+        if (regex.test(s)) {
+          s = s.replace(regex, '').replace(/\s+/g, ' ').trim();
+          break;
+        }
+      }
+      return s;
+    };
+
+    let isValid = true;
+    const keyParts = [];
+
+    if (dupFields.url) {
+      const u = cleanString(item.url);
+      if (!u) isValid = false;
+      else keyParts.push(`url:${u}`);
+    }
+
+    if (dupFields.address) {
+      const a = cleanString(item.address);
+      if (!a) isValid = false;
+      else keyParts.push(`addr:${a}`);
+    }
+
+    if (dupFields.phone) {
+      const p = cleanPhone(item.phone);
+      if (!p) isValid = false;
+      else keyParts.push(`phone:${p}`);
+    }
+
+    if (dupFields.title) {
+      const t = extractActualName(item.title);
+      if (!t) isValid = false;
+      else keyParts.push(`title:${t}`);
+    }
+
+    if (isValid && keyParts.length > 0) {
+      return keyParts.join('|');
+    }
+    return null;
+  };
+
   const performRemoveDuplicates = (type) => {
     setIsDedupModalOpen(false);
     const beforeCount = currentData.length;
 
-    const fileDupCount = currentData.filter(item => item.isDuplicate && item.duplicateSource === 'file').length;
-    const storageDupCount = currentData.filter(item => item.isDuplicate && item.duplicateSource === 'storage').length;
-    const totalDupCount = currentData.filter(item => item.isDuplicate).length;
-
+    const seenFileKeys = new Set();
     let cleanData = [];
-    let removedCount = 0;
 
     if (type === 'file') {
-      cleanData = currentData.filter(item => !(item.isDuplicate && item.duplicateSource === 'file'));
-      removedCount = fileDupCount;
+      // Xóa trùng trong tệp: Giữ lại bản ghi đầu tiên của mỗi nhóm trùng nội bộ tệp, chỉ xóa các bản ghi trùng lặp từ vị trí thứ 2 trở đi
+      cleanData = currentData.filter(item => {
+        if (item.isDuplicate && item.duplicateSource === 'file') {
+          const key = getItemKey(item);
+          if (key) {
+            if (seenFileKeys.has(key)) {
+              return false; // Đã có bản ghi đầu tiên giữ lại -> Xóa các bản ghi trùng lặp thứ 2+
+            }
+            seenFileKeys.add(key); // Giữ lại bản ghi đại diện đầu tiên trong tệp
+            return true;
+          }
+        }
+        return true; // Giữ lại các bản ghi không bị trùng nội bộ tệp
+      });
     } else if (type === 'storage') {
+      // Xóa trùng trong kho: Loại bỏ khỏi tệp đang xử lý các bản ghi đã tồn tại trong kho Local Storage
       cleanData = currentData.filter(item => !(item.isDuplicate && item.duplicateSource === 'storage'));
-      removedCount = storageDupCount;
     } else if (type === 'both') {
-      cleanData = currentData.filter(item => !item.isDuplicate);
-      removedCount = totalDupCount;
+      // Xóa tất cả trùng lặp: Loại bỏ khỏi tệp các bản ghi đã có trong kho + giữ lại 1 bản ghi đại diện cho trùng tệp
+      cleanData = currentData.filter(item => {
+        if (item.isDuplicate && item.duplicateSource === 'storage') {
+          return false; // Loại bỏ khỏi tệp các bản ghi đã có trong kho
+        }
+        if (item.isDuplicate && item.duplicateSource === 'file') {
+          const key = getItemKey(item);
+          if (key) {
+            if (seenFileKeys.has(key)) {
+              return false; // Xóa các bản ghi trùng lặp thứ 2+ trong tệp
+            }
+            seenFileKeys.add(key); // Giữ lại 1 bản ghi đại diện đầu tiên
+            return true;
+          }
+        }
+        return true;
+      });
     }
 
-    if (removedCount === 0) return;
+    // Dọn dẹp cờ isDuplicate cho các bản ghi đại diện còn lại vừa được lọc bớt trùng tệp
+    cleanData = cleanData.map(item => {
+      if (item.duplicateSource === 'file') {
+        return { ...item, isDuplicate: false, duplicateSource: null };
+      }
+      return item;
+    });
+
+    const removedCount = beforeCount - cleanData.length;
+    if (removedCount === 0) {
+      toast.info('Không có bản ghi nào bị xóa khỏi tệp đang xử lý.');
+      return;
+    }
 
     // Sắp xếp và đánh lại số thứ tự STT bắt từ 1
     const reindexedData = cleanData.map((item, idx) => ({
@@ -263,7 +366,7 @@ function App() {
     }));
 
     setCurrentData(reindexedData);
-    toast.success(`Đã loại bỏ thành công ${removedCount} dòng trùng lặp!`);
+    toast.success(`Đã loại bỏ thành công ${removedCount} dòng trùng lặp khỏi tệp (bảo tồn 1 bản ghi đại diện)!`);
   };
 
   // --- Chuyển đổi chủ đề Light / Dark Mode ---
@@ -550,16 +653,8 @@ function App() {
         return s;
       };
 
-      // Cập nhật thuộc tính isDuplicate và duplicateSource bằng Set O(1)
-      const updatedData = currentData.map(item => {
-        let isDup = apiDupSet.has(item.stt);
-        let dupSource = null;
-
-        if (isDup) {
-          dupSource = 'storage'; // Trùng với dữ liệu đã lưu trong kho Local Storage
-        }
-
-        // Tạo khóa đại diện kết hợp cho bản ghi hiện tại
+      // Helper trích xuất khóa đại diện cho bản ghi
+      const getItemKey = (item) => {
         let isValid = true;
         const keyParts = [];
 
@@ -588,17 +683,35 @@ function App() {
         }
 
         if (isValid && keyParts.length > 0) {
-          const key = keyParts.join('|');
-          if (!isDup) {
-            if (seenKeys.has(key)) {
-              isDup = true;
-              dupSource = 'file'; // Trùng nội bộ trong tệp vừa nạp
-            } else {
-              seenKeys.add(key);
-            }
-          } else {
-            seenKeys.add(key);
-          }
+          return keyParts.join('|');
+        }
+        return null;
+      };
+
+      // 1. Thống kê tần suất xuất hiện của từng khóa đại diện trong tệp vừa nạp (Map O(N))
+      const fileKeyCounts = new Map();
+      currentData.forEach(item => {
+        const key = getItemKey(item);
+        if (key) {
+          fileKeyCounts.set(key, (fileKeyCounts.get(key) || 0) + 1);
+        }
+      });
+
+      // 2. Cập nhật thuộc tính isDuplicate và duplicateSource (Ưu tiên nhãn 'file' khi bị trùng cả tệp và kho)
+      const updatedData = currentData.map(item => {
+        const key = getItemKey(item);
+        const isFileDup = key ? (fileKeyCounts.get(key) > 1) : false;
+        const isStorageDup = apiDupSet.has(item.stt);
+
+        let isDup = false;
+        let dupSource = null;
+
+        if (isFileDup) {
+          isDup = true;
+          dupSource = 'file'; // Ưu tiên hiển thị trùng trong tệp nếu bị trùng cả trong tệp và trong kho
+        } else if (isStorageDup) {
+          isDup = true;
+          dupSource = 'storage'; // Trùng với dữ liệu đã lưu trong kho Local Storage
         }
 
         return {
@@ -684,6 +797,48 @@ function App() {
       toast.success(`Đã chuyển đổi thành công ${modifiedCount} tên cơ sở sang "hotel"!`);
     } else {
       toast.info('Không tìm thấy tên cơ sở nào chứa "Khách Sạn", "khach san" hoặc "ks" để chuyển đổi.');
+    }
+  };
+
+  // --- Hành động: Loại bỏ chữ sau dấu gạch nối (-), bảo toàn hậu tố nhãn (#...) ---
+  const handleRemoveTextAfterDash = () => {
+    if (currentData.length === 0) {
+      toast.warn('Bảng hiện đang trống, không có dữ liệu để xử lý.');
+      return;
+    }
+
+    let modifiedCount = 0;
+    const updatedData = currentData.map(item => {
+      const oldTitle = String(item.title || '');
+      if (!oldTitle) return item;
+
+      // Trích xuất hậu tố tag (#...) ở cuối chuỗi nếu có
+      const tagMatch = oldTitle.match(/\s*(\(#.*?\))\s*$/);
+      const tagStr = tagMatch ? tagMatch[1] : '';
+      const mainPart = tagMatch ? oldTitle.slice(0, tagMatch.index) : oldTitle;
+
+      // Cắt bỏ phần chữ sau dấu gạch nối (-) hoặc ( - )
+      const dashMatch = mainPart.match(/^(.*?)\s*-\s*/);
+      const cleanMainPart = dashMatch ? dashMatch[1].trim() : mainPart.trim();
+
+      // Ghép lại phần tên chính đã cắt + tag giữ nguyên
+      const newTitle = tagStr ? `${cleanMainPart} ${tagStr}` : cleanMainPart;
+
+      if (newTitle !== oldTitle) {
+        modifiedCount++;
+        return {
+          ...item,
+          title: newTitle
+        };
+      }
+      return item;
+    });
+
+    if (modifiedCount > 0) {
+      setCurrentData(updatedData);
+      toast.success(`Đã cắt bỏ chữ sau dấu gạch nối (-) cho ${modifiedCount} tên cơ sở (bảo toàn hậu tố nhãn)!`);
+    } else {
+      toast.info('Không tìm thấy tên cơ sở nào chứa dấu gạch nối (-) để cắt bỏ.');
     }
   };
 
@@ -1512,6 +1667,7 @@ function App() {
             onExportExcel={handleExportExcel}
             onToggleFlag={handleToggleFlag}
             onConvertToHotel={handleConvertToHotel}
+            onRemoveTextAfterDash={handleRemoveTextAfterDash}
             onGoToHotel4Mail={() => navigate('/view-hotel4mail')}
             currentFileName={currentFileName}
           />

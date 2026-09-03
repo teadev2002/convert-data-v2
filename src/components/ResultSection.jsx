@@ -12,6 +12,7 @@ export default function ResultSection({
   onExportExcel,
   onToggleFlag,
   onConvertToHotel,
+  onRemoveTextAfterDash,
   onGoToHotel4Mail,
   currentFileName
 }) {
@@ -94,6 +95,14 @@ export default function ResultSection({
               🔄 Chuyển sang hotel
             </button>
           )}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onRemoveTextAfterDash}
+            title="Loại bỏ chữ sau dấu gạch nối (-), bảo toàn hậu tố nhãn (#...) nếu có"
+          >
+            ✂️ Cắt sau dấu (-)
+          </button>
           {dataType === 'hotels' && (
             <button
               type="button"
