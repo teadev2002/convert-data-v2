@@ -45,8 +45,19 @@ export const dedupService = {
         const cleanPhone = (val) => {
           const parts = String(val || '').split(/[|/,;]/);
           const cleaned = parts
-            .map(p => p.replace(/\D/g, ''))
-            .filter(p => p !== '')
+            .map(p => {
+              let s = p.replace(/\D/g, '');
+              if (s.startsWith('0084') && s.length >= 12) {
+                s = '0' + s.slice(4);
+              } else if (s.startsWith('84') && s.length >= 10) {
+                s = '0' + s.slice(2);
+              }
+              if (s.length === 9 && !s.startsWith('0')) {
+                s = '0' + s;
+              }
+              return s;
+            })
+            .filter(p => p.length >= 9)
             .sort();
           return cleaned.join('|');
         };

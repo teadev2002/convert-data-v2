@@ -54,5 +54,21 @@ function normalizeSinglePhone(str) {
     s = '0' + s.slice(2);
   }
 
-  return s;
+  // 4. Kiểm tra độ dài chữ số:
+  // - Nếu ít hơn 9 chữ số (< 9 số): Loại bỏ số điện thoại (trả về chuỗi rỗng)
+  if (s.length < 9) {
+    return '';
+  }
+
+  // - Nếu có đúng 9 chữ số (thiếu số 0 ở đầu): Tự động bổ sung tiền tố '0
+  if (s.length === 9) {
+    return "'0" + s;
+  }
+
+  // - Nếu có từ 10 chữ số trở lên: Thêm tiền tố ' để đảm bảo định dạng văn bản (text) đồng nhất
+  if (s.startsWith('0')) {
+    return "'" + s;
+  } else {
+    return "'0" + s;
+  }
 }
