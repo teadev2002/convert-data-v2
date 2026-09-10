@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { formatDateField, getNvCall, getDocDateZalo, getUpDateZalo, getDocDateEmail, getUpDateEmail, getReadAiZalo, getCheckAiZalo, getReadAiEmail, getCheckAiEmail } from './parser.js';
 
 /**
  * Xuất mảng dữ liệu khách sạn/nhà hàng/spa hiện tại ra file Excel (.xlsx)
@@ -100,24 +101,24 @@ export function exportHotel4MailToExcel(data, fileName = 'hotels_4mail.xlsx') {
       phoneStr,                  // Phone
       item.categoryName || item["CategoryName"] || '',   // CategoryName
       item["Ghi chú"] || '',
-      item["Ngày tương tác"] || '',
-      item["Tên nv gọi"] || '',
+      formatDateField(item["Ngày tương tác"]),
+      getNvCall(item),
       item["Emai"] || item["Email liên hệ"] || '',
-      item["Gửi email"] || '',
-      item["Nhắc L1"] || item["Nhắc lần 1 (Email)"] || '',
-      item["Nhắc lần 2"] || item["Nhắc lần 2 (Email)"] || '',
-      item["Ngày nhận Báo giá, Hợp đồng"] || item["Ngày nhận Báo giá, Hợp đồng (Email)"] || '',
-      item["Ngày up TT NCC"] || item["Ngày up TT NCC (Email)"] || '',
-      item["Đọc AI"] || item["Đọc AI (Email)"] || '',
-      item["Kiểm tra Dữ liệu AI"] || item["Kiểm tra Dữ liệu AI (Email)"] || '',
+      formatDateField(item["Gửi email"]),
+      formatDateField(item["Nhắc L1"] || item["Nhắc lần 1 (Email)"]),
+      formatDateField(item["Nhắc lần 2"] || item["Nhắc lần 2 (Email)"]),
+      getDocDateEmail(item),
+      getUpDateEmail(item),
+      getReadAiEmail(item),
+      getCheckAiEmail(item),
       item["Zalo"] || '',
-      item["Gửi zalo"] || '',
-      item["Nhắc lần 1"] || item["Nhắc lần 1 (Zalo)"] || '',
-      item["Nhắc lần 2"] || item["Nhắc lần 2 (Zalo)"] || '',
-      item["Ngày nhận Báo giá, Hợp đồng (Zalo)"] || item["Ngày nhận Báo giá, Hợp đồng "] || '',
-      item["Ngày up TT NCC (Zalo)"] || item["Ngày up TT NCC "] || '',
-      item["Đọc AI (Zalo)"] || item["Đọc AI "] || '',
-      item["Kiểm tra Dữ liệu AI (Zalo)"] || item["Kiểm tra Dữ liệu AI "] || '',
+      formatDateField(item["Gửi zalo"]),
+      formatDateField(item["Nhắc lần 1"] || item["Nhắc lần 1 (Zalo)"]),
+      formatDateField(item["Nhắc lần 2"] || item["Nhắc lần 2 (Zalo)"]),
+      getDocDateZalo(item),
+      getUpDateZalo(item),
+      getReadAiZalo(item),
+      getCheckAiZalo(item),
       item["Khác"] || '',
       item.address || item["Address"] || '',
       item.url || item["URL"] || item["url"] || ''
